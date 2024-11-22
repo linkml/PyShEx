@@ -1,6 +1,21 @@
 CHANGES
 =======
 
+* Allow pytest for tox
+* running tests (tox) updated CHANGES
+* Running tests (tox) added me (Yaroslav Halchenko) and Josh Moore into AUTHORS, thanks
+* Fix tox.ini envlist needing "," as separator
+* Add testing/declare 3.11 and 3.12 as supported
+* Declare 3.9 and 3.10 as supported since tested against already
+* Enable codecov
+
+v0.8.1
+------
+
+* Fix lru\_cache option
+* Remove the separate pr-test file.  The main catches it
+* Update requirements file
+* Fix for issue #81
 * Replace '/' with '\'
 
 v0.8.0
