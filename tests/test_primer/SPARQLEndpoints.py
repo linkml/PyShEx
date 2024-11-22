@@ -26,7 +26,7 @@ PREFIX : <http://example.org/t1/>
 START=@:S1
 
 :S1 {foaf:page IRI+ ;                     # one or more foaf pages
-     drugbank:limsDrugId xsd:string       # ane exactly one drug id
+     drugbank:limsDrugId xsd:string       # and exactly one drug id
 }"""
 
 

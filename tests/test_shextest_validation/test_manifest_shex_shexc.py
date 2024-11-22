@@ -3,7 +3,7 @@ import unittest
 
 from rdflib import URIRef
 
-from ancilliary.earlreport import EARLPage
+from ancillary.earlreport import EARLPage
 from tests.utils.manifest_tester import ManifestEntryTestCase
 
 

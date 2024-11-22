@@ -9,7 +9,7 @@ from rdflib import URIRef
 import rdflib_shim
 shimin = rdflib_shim.RDFLIB_SHIM
 
-from ancilliary.earlreport import EARLPage
+from ancillary.earlreport import EARLPage
 from pyshex.shape_expressions_language.p5_2_validation_definition import isValid
 from pyshex.shape_expressions_language.p5_context import Context
 from pyshex.shapemap_structure_and_language.p3_shapemap_structure import ShapeAssociation, FixedShapeMap, START

@@ -107,7 +107,7 @@ class ShExEvaluator:
 
     @rdf.setter
     def rdf(self, rdf: Optional[Union[str, Graph]]) -> None:
-        """ Set the RDF DataSet to be evaulated.  If ``rdf`` is a string, the presence of a return is the
+        """ Set the RDF DataSet to be evaluated.  If ``rdf`` is a string, the presence of a return is the
         indicator that it is text instead of a location.
 
         :param rdf: File name, URL, representation of rdflib Graph

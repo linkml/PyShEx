@@ -209,7 +209,7 @@ class PartitionsTestCase(unittest.TestCase):
 
     def test_large_filtered_integer(self):
         """ The purpose of this test is to make sure that the generators work all the way through. If there
-        is something in the pipeline that requires complet resolution, this test will never finish. """
+        is something in the pipeline that requires complete resolution, this test will never finish. """
         x = filtered_integer_partition(25, 20)
         [next(x) for _ in range(100)]
         self.assertEqual((

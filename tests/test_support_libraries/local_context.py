@@ -2,7 +2,7 @@ import sys
 from rdflib import URIRef, XSD
 from pyshex import PrefixLibrary
 
-""" This module is used to test the PrefixLibrary's ability to inject namespaces directoy into the containing module 
+""" This module is used to test the PrefixLibrary's ability to inject namespaces directory into the containing module 
 It is used in conjunction with test_prefixlib.test_add_to_module """
 
 pl = PrefixLibrary("""

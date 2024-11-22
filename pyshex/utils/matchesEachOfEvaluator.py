@@ -19,7 +19,7 @@ class EachOfEvaluator:
         """
         # tripleExpr = Union["EachOf", "OneOf", "TripleConstraint", tripleExprLabel]
         #
-        # For each tripleExpr in expressions deteremine the set of applicable predicates and their
+        # For each tripleExpr in expressions determine the set of applicable predicates and their
         # corresponding triples.
         #
         #       Case 1: predicate occurs in exactly one expression and expression references exactly one predicate

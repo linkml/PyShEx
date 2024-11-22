@@ -25,7 +25,7 @@ def satisfies(cntxt: Context, n: Node, se: ShExJ.shapeExpr) -> bool:
             satisfies(n, se2, G, m).
             * Se is a ShapeAnd and for every shape expression se2 in shapeExprs, satisfies(n, se2, G, m).
             * Se is a ShapeNot and for the shape expression se2 at shapeExpr, notSatisfies(n, se2, G, m).
-            * Se is a ShapeExternal and implementation-specific mechansims not defined in this specification
+            * Se is a ShapeExternal and implementation-specific mechanisms not defined in this specification
             indicate success.
             * Se is a shapeExprRef and there exists in the schema a shape expression se2 with that id and
                       satisfies(n, se2, G, m).
@@ -77,7 +77,7 @@ def satisfiesShapeNot(cntxt: Context, n: Node, se: ShExJ.ShapeNot, _: DebugConte
 
 @trace_satisfies(True)
 def satisfiesExternal(cntxt: Context, n: Node, se: ShExJ.ShapeExternal, c: DebugContext) -> bool:
-    """ Se is a ShapeExternal and implementation-specific mechansims not defined in this specification indicate
+    """ Se is a ShapeExternal and implementation-specific mechanisms not defined in this specification indicate
      success.
      """
     if c.debug:

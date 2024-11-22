@@ -141,7 +141,7 @@ At the moment, there are 1088 tests, of which:
 1) (52) sht:LexicalBNode, sht:ToldBNode and sht:BNodeShapeLabel test non-blank blank nodes (`rdflib` does not preserve bnode "identity")
 2) (18) sht:Import Uses ShEx 2.1 IMPORT feature -- not yet implemented (three aren't tagged)
 3) (3) Uses manifest shapemap feature -- not yet implemented
-4) (2) sht:relativeIRI -- this isn't a real problem, but we havent taken time to deal with this in the test harness
+4) (2) sht:relativeIRI -- this isn't a real problem, but we haven't taken time to deal with this in the test harness
 5) (6) `rdflib` has a parsing error when escaping single quotes. (Issue submitted, awaiting release)
 
 As mentioned above, at the moment this is as literal an implementation of the specification as was sensible.  This means, in particular, that we are less than clever when it comes to partition management.
