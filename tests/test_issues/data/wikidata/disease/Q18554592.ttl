@@ -1,0 +1,62 @@
+@prefix do: <http://purl.obolibrary.org/obo/DOID_> .
+@prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns2: <http://wikiba.se/ontology#> .
+@prefix p: <http://www.wikidata.org/prop/> .
+@prefix ps: <http://www.wikidata.org/prop/statement/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wd: <http://www.wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+wd:Q18554592 rdfs:label "lipoma de la médula espinal",
+        "lipome de la colonne vertébrale",
+        "spinal cord lipoma",
+        "spinales Lipom" ;
+    schema1:dateModified "2024-02-25T21:33:43+00:00"^^xsd:dateTime ;
+    schema1:description "Krankheit",
+        "central nervous system lipoma that is characterized by abnormal fat accumulation in and around the spinal cord",
+        "хвороба" ;
+    schema1:version 2087206552 ;
+    ns2:identifiers 3 ;
+    ns2:sitelinks 1 ;
+    ns2:statements 14 ;
+    skos:altLabel "Lipoma of spinal cord",
+        "Lipoma of spinal cord (disorder)",
+        "Spinal Cord Lipoma",
+        "lipoma espinal",
+        "spinal lipoma" ;
+    p:P1692 <http://www.wikidata.org/entity/statement/Q18554592-18BC749B-8D9E-4CCC-A770-AEB3E4933671> ;
+    p:P1748 <http://www.wikidata.org/entity/statement/Q18554592-275E3100-4F59-420F-A106-2994258CC037> ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q18554592-0D7DFB51-C668-4AA1-97CC-EDFE310CF779>,
+        <http://www.wikidata.org/entity/statement/Q18554592-36C1958B-E280-400C-B3B6-83176019F060>,
+        <http://www.wikidata.org/entity/statement/Q18554592-D91AFB75-402D-4A2C-BADA-8E3B39634F28>,
+        <http://www.wikidata.org/entity/statement/Q18554592-EF9A1396-8B65-4A70-9B0B-1139F2A9B8D6> ;
+    p:P2888 <http://www.wikidata.org/entity/statement/Q18554592-53BA111F-956E-4538-AD0F-C792E7C11592>,
+        <http://www.wikidata.org/entity/statement/Q18554592-BB2D7557-12E3-4280-8939-361FE37114DE> ;
+    p:P2892 <http://www.wikidata.org/entity/statement/Q18554592-85EE5898-5989-4D63-B7AB-A5CD439F3B1B> ;
+    p:P31 <http://www.wikidata.org/entity/statement/Q18554592-AC7E5A46-3777-4C51-9A90-21233C1DE7C6> ;
+    p:P5008 <http://www.wikidata.org/entity/statement/Q18554592-402B09BE-13D2-4B20-8651-200BE222823A> ;
+    p:P5270 <http://www.wikidata.org/entity/statement/Q18554592-267CEC66-1B1C-413C-AF5A-735DDFCBA156> ;
+    p:P699 <http://www.wikidata.org/entity/statement/Q18554592-AC488A63-0D10-4638-88B0-058F9C72028C> ;
+    p:P927 <http://www.wikidata.org/entity/statement/Q18554592-86149C50-3727-4A0E-893C-FF7389656BD1> ;
+    ns1:P5270 <http://purl.obolibrary.org/obo/MONDO_0001790> ;
+    ns1:P699 <http://purl.obolibrary.org/obo/DOID_DOID:13743> ;
+    wdt:P1692 "214.8" ;
+    wdt:P1748 "C4619" ;
+    wdt:P279 wd:Q18557209,
+        wd:Q2303951,
+        wd:Q689985,
+        wd:Q7577474 ;
+    wdt:P2888 <http://identifiers.org/doid/DOID:13743>,
+        do:13743 ;
+    wdt:P2892 "C0347446" ;
+    wdt:P31 wd:Q112193867 ;
+    wdt:P5008 wd:Q4099686 ;
+    wdt:P5270 "MONDO_0001790" ;
+    wdt:P699 "DOID:13743" ;
+    wdt:P927 wd:Q9606 .
+
+<http://www.wikidata.org/entity/statement/Q18554592-AC7E5A46-3777-4C51-9A90-21233C1DE7C6> ps:P31 wd:Q112193867 .
+

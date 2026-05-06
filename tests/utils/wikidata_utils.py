@@ -1,6 +1,5 @@
 import os
-import unittest
-from typing import Optional, List, NamedTuple, Union
+from typing import NamedTuple
 
 import jsonasobj
 import requests
@@ -8,7 +7,6 @@ from SPARQLWrapper import JSON
 from jsonasobj import loads
 from rdflib import URIRef, Literal
 from rdflib.namespace import SKOS
-from sparqlslurper import SlurpyGraph
 
 from pyshex import PrefixLibrary, ShExEvaluator
 from pyshex.shex_evaluator import EvaluationResult
@@ -20,19 +18,17 @@ class DataFrame(NamedTuple):
 
 
 class Triple(NamedTuple):
-    s: Optional[URIRef]
-    p: Optional[URIRef]
-    o: Optional[Union[Literal, URIRef]]
+    s: URIRef | None
+    p: URIRef | None
+    o: Literal | URIRef | None
 
 
-class WikiDataTestCase(unittest.TestCase):
+class WikiDataTestCase:
     save_test_data = False
 
     @staticmethod
     def get_sparql_dataframe(service, query):
-        """
-        Helper function to convert SPARQL results into a Pandas data frame.
-        """
+        """Convert SPARQL results into a list of item values."""
         sparql = SPARQLWrapperWithAgent(service)
         sparql.setQuery(query)
         sparql.setReturnFormat(JSON)
@@ -43,13 +39,13 @@ class WikiDataTestCase(unittest.TestCase):
 
     def fetch_uri(self, uri: str) -> str:
         req = requests.get(uri)
-        self.assertTrue(req.ok, f"Unable to read {uri}")
+        assert req.ok, f"Unable to read {uri}"
         return req.text
 
-    def run_test(self, manifest_uri: str, num_entries: Optional[int]=None, verbose: bool=True, debug: bool=False,
-                 stop_on_fail: bool=False, debug_slurps: bool=False, save_graph_dir: Optional[str]=None) \
-            -> List[EvaluationResult]:
-        """ Run the test identified by manifest_uri
+    def run_test(self, manifest_uri: str, num_entries: int | None = None, verbose: bool = True,
+                 debug: bool = False, stop_on_fail: bool = False, debug_slurps: bool = False,
+                 save_graph_dir: str | None = None) -> list[EvaluationResult]:
+        """Run the test identified by manifest_uri.
 
         :param manifest_uri: uri of manifest
         :param num_entries: number of manifest elements to test
@@ -61,7 +57,7 @@ class WikiDataTestCase(unittest.TestCase):
         :return:
         """
         manifest = loads(self.fetch_uri(manifest_uri))
-        rval: List[EvaluationResult] = []
+        rval: list[EvaluationResult] = []
         for case in manifest:
             if verbose:
                 print(case._as_json_dumps())
@@ -70,14 +66,14 @@ class WikiDataTestCase(unittest.TestCase):
             evaluator = ShExEvaluator(schema=shex, debug=debug)
             prefixes = PrefixLibrary(shex, SKOS=SKOS)
             sparql_query = case.queryMap.replace("SPARQL '''", "").replace("'''@START", "")
-            dfs: List[str] = self.get_sparql_dataframe(sparql_endpoint, sparql_query)
+            dfs: list[str] = self.get_sparql_dataframe(sparql_endpoint, sparql_query)
             dfs_slice = dfs[:num_entries] if num_entries is not None else dfs
             for df in dfs_slice:
                 slurper = SlurpyGraphWithAgent(sparql_endpoint)
-                # slurper.debug_slurps = debug_slurps
                 prefixes.add_bindings_to(slurper)
                 print(f"Evaluating: {df}")
-                results = evaluator.evaluate(rdf=slurper, focus=df, debug=debug, debug_slurps=debug_slurps, over_slurp=False)
+                results = evaluator.evaluate(rdf=slurper, focus=df, debug=debug,
+                                             debug_slurps=debug_slurps, over_slurp=False)
                 rval += results
                 if save_graph_dir:
                     element_name = df.rsplit('/', 1)[1]

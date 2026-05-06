@@ -1,0 +1,63 @@
+@prefix do: <http://purl.obolibrary.org/obo/DOID_> .
+@prefix ns1: <http://wikiba.se/ontology#> .
+@prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix p: <http://www.wikidata.org/prop/> .
+@prefix ps: <http://www.wikidata.org/prop/statement/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wd: <http://www.wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+wd:Q19833018 rdfs:label "anémie sidéroblastique autosomique dominante",
+        "autosomal dominant sideroblastic anemia" ;
+    schema1:dateModified "2024-02-25T22:44:01+00:00"^^xsd:dateTime ;
+    schema1:description "Krankheit",
+        "sideroblastic anemia characterized by an autosomal dominant inheritance pattern",
+        "хвороба" ;
+    schema1:version 2087252686 ;
+    ns1:identifiers 5 ;
+    ns1:sitelinks 0 ;
+    ns1:statements 15 ;
+    skos:altLabel "ANEMIA, SIDEROBLASTIC, AUTOSOMAL DOMINANT",
+        "autosomal dominant sideroblastic anemia 4",
+        "sideroblastic anemia, autosomal dominant" ;
+    p:P1199 <http://www.wikidata.org/entity/statement/Q19833018-01772d9c-4cbd-df3b-217f-8f6db435acf6> ;
+    p:P2293 <http://www.wikidata.org/entity/statement/Q19833018-2155A881-E110-49EC-95A6-C8A9DB64AE90> ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q19833018-6A6DFADB-0677-4F82-89BC-4BEB7F63D2D8>,
+        <http://www.wikidata.org/entity/statement/Q19833018-77B78D53-BCBB-4B7B-B421-E4E856056700>,
+        <http://www.wikidata.org/entity/statement/Q19833018-B66C189E-62FC-4D44-8A69-EFB5AAC22553> ;
+    p:P2888 <http://www.wikidata.org/entity/statement/Q19833018-0D228F0B-19AE-4457-AF3A-56BAF2278575>,
+        <http://www.wikidata.org/entity/statement/Q19833018-EEC1CA94-524C-42D1-8CF6-9438093B8AAD> ;
+    p:P2892 <http://www.wikidata.org/entity/statement/Q19833018-FDCC2C5C-BAEB-43FE-8BCD-6FD906155458> ;
+    p:P31 <http://www.wikidata.org/entity/statement/Q19833018-03CC7F20-1FF4-4F9C-96A8-BFC8BB0AE1C8>,
+        <http://www.wikidata.org/entity/statement/Q19833018-BEDA6EEB-048F-4DD6-8634-B739ACE3572A> ;
+    p:P486 <http://www.wikidata.org/entity/statement/Q19833018-E598692A-3402-413F-8370-E5F474C321D2> ;
+    p:P492 <http://www.wikidata.org/entity/statement/Q19833018-951AC0F2-C66B-49ED-8647-11AE783A1942> ;
+    p:P5008 <http://www.wikidata.org/entity/statement/Q19833018-1FA01753-32FA-4848-A8FA-EAD7D88EF431> ;
+    p:P5270 <http://www.wikidata.org/entity/statement/Q19833018-D79813A2-8F2B-4B5D-AAD0-4B8288ABF3F5> ;
+    p:P699 <http://www.wikidata.org/entity/statement/Q19833018-F6BDBFBE-BC3D-409F-8B11-4AB5E287AF30> ;
+    ns2:P486 <http://id.nlm.nih.gov/mesh/C567160> ;
+    ns2:P5270 <http://purl.obolibrary.org/obo/MONDO_0008422> ;
+    ns2:P699 <http://purl.obolibrary.org/obo/DOID_DOID:0060335> ;
+    wdt:P1199 wd:Q116406 ;
+    wdt:P2293 wd:Q18027359 ;
+    wdt:P279 wd:Q18553439,
+        wd:Q2610084,
+        wd:Q3616631 ;
+    wdt:P2888 <http://identifiers.org/doid/DOID:0060335>,
+        do:0060335 ;
+    wdt:P2892 "C2674249" ;
+    wdt:P31 wd:Q112193867,
+        wd:Q929833 ;
+    wdt:P486 "C567160" ;
+    wdt:P492 "182170" ;
+    wdt:P5008 wd:Q4099686 ;
+    wdt:P5270 "MONDO_0008422" ;
+    wdt:P699 "DOID:0060335" .
+
+<http://www.wikidata.org/entity/statement/Q19833018-03CC7F20-1FF4-4F9C-96A8-BFC8BB0AE1C8> ps:P31 wd:Q929833 .
+
+<http://www.wikidata.org/entity/statement/Q19833018-BEDA6EEB-048F-4DD6-8634-B739ACE3572A> ps:P31 wd:Q112193867 .
+

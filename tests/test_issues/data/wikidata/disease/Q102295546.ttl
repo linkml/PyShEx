@@ -1,0 +1,41 @@
+@prefix do: <http://purl.obolibrary.org/obo/DOID_> .
+@prefix ns1: <http://wikiba.se/ontology#> .
+@prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix p: <http://www.wikidata.org/prop/> .
+@prefix ps: <http://www.wikidata.org/prop/statement/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix wd: <http://www.wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+wd:Q102295546 rdfs:label "GNE myopathy" ;
+    schema1:dateModified "2023-09-27T04:33:33+00:00"^^xsd:dateTime ;
+    schema1:description "human disease",
+        "хвороба людини" ;
+    schema1:version 1982386654 ;
+    ns1:identifiers 4 ;
+    ns1:sitelinks 0 ;
+    ns1:statements 9 ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q102295546-1E5A5DE0-88A1-4A95-ABA8-F7F7BC7CB7AF>,
+        <http://www.wikidata.org/entity/statement/Q102295546-C1FC7DB3-6D21-4331-A97C-FFE8637B9719> ;
+    p:P2888 <http://www.wikidata.org/entity/statement/Q102295546-6B3FFFD6-9DAF-4A8F-9E22-C511BE47FE3D>,
+        <http://www.wikidata.org/entity/statement/Q102295546-C6AA8BFB-6F8F-46C0-84E1-B4CA29AFA020> ;
+    p:P2892 <http://www.wikidata.org/entity/statement/Q102295546-d7a2d317-44b5-094b-1841-2bf960a3229a> ;
+    p:P31 <http://www.wikidata.org/entity/statement/Q102295546-2590C233-9387-4E07-B781-C18AAB57240B> ;
+    p:P4317 <http://www.wikidata.org/entity/statement/Q102295546-08b1737f-4bb0-c963-b693-c4451bffcd21> ;
+    p:P492 <http://www.wikidata.org/entity/statement/Q102295546-3fcff211-4606-3b7a-eda3-2b26670e3367> ;
+    p:P699 <http://www.wikidata.org/entity/statement/Q102295546-67DA0BEE-3C13-4409-B8EE-482F83531EAF> ;
+    ns2:P699 <http://purl.obolibrary.org/obo/DOID_DOID:0080718> ;
+    wdt:P279 wd:Q10267817,
+        wd:Q692536 ;
+    wdt:P2888 <http://identifiers.org/doid/DOID:0080718>,
+        do:0080718 ;
+    wdt:P2892 "C1853926" ;
+    wdt:P31 wd:Q112193867 ;
+    wdt:P4317 "9493" ;
+    wdt:P492 "605820" ;
+    wdt:P699 "DOID:0080718" .
+
+<http://www.wikidata.org/entity/statement/Q102295546-2590C233-9387-4E07-B781-C18AAB57240B> ps:P31 wd:Q112193867 .
+

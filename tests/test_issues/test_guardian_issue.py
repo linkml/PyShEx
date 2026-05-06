@@ -1,5 +1,3 @@
-import unittest
-
 from pyshex import PrefixLibrary, ShExEvaluator
 
 schema = """
@@ -31,30 +29,24 @@ PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
 inst:Eric foaf:age 20 ;
   ex:hasGuardian inst:PersonA, inst:PersonB, inst:PersonC .
-  
+
 inst:Fred ex:hasMany [ex:hasGuardian inst:Animal1, inst:Animal2], [ex:hasGuardian inst:Animal3].
 """
 
 
-class ThreeGuardiansTestCase(unittest.TestCase):
-    def test_eric(self):
-        p = PrefixLibrary(rdf)
-        for result in ShExEvaluator(rdf=rdf,
-                                    schema=schema,
-                                    focus=p.INST.Eric,
-                                    start=p.SCHOOL.Enrollee).evaluate(debug=False):
-            print(f"{result.focus}: {'Passing' if result.result else 'Failing'}: \n{result.reason}")
-            self.assertFalse(result.result)
-
-    def test_fred(self):
-        p = PrefixLibrary(rdf)
-        for result in ShExEvaluator(rdf=rdf,
-                                    schema=schema,
-                                    focus=p.INST.Fred,
-                                    start=p.SCHOOL.Encapsulated).evaluate(debug=False):
-            print(f"{result.focus}: {'Passing' if result.result else 'Failing'}: \n{result.reason}")
-            self.assertFalse(result.result)
+def test_eric():
+    p = PrefixLibrary(rdf)
+    for result in ShExEvaluator(rdf=rdf, schema=schema,
+                                focus=p.INST.Eric,
+                                start=p.SCHOOL.Enrollee).evaluate(debug=False):
+        print(f"{result.focus}: {'Passing' if result.result else 'Failing'}: \n{result.reason}")
+        assert not result.result
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_fred():
+    p = PrefixLibrary(rdf)
+    for result in ShExEvaluator(rdf=rdf, schema=schema,
+                                focus=p.INST.Fred,
+                                start=p.SCHOOL.Encapsulated).evaluate(debug=False):
+        print(f"{result.focus}: {'Passing' if result.result else 'Failing'}: \n{result.reason}")
+        assert not result.result

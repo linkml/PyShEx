@@ -1,0 +1,61 @@
+@prefix do: <http://purl.obolibrary.org/obo/DOID_> .
+@prefix ns1: <http://wikiba.se/ontology#> .
+@prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix p: <http://www.wikidata.org/prop/> .
+@prefix ps: <http://www.wikidata.org/prop/statement/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wd: <http://www.wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+wd:Q1355765 rdfs:label "Schaf- und Ziegenbrucellose",
+        "brucellose som skuldast Brucella melitensis",
+        "brucellose à Brucella melitensis",
+        "ovine and caprine brucellosis" ;
+    schema1:dateModified "2025-02-04T08:57:17+00:00"^^xsd:dateTime ;
+    schema1:description "Deckseuche von Ziegen und Schafen",
+        "brucellosis that involves an infection caused by Brucella melitensis [NCBITaxon:29459] in cattle, goats, sheep and humans. The disease has symptom fever, has symptom malaise, has symptom anorexia, has symptom limb pain and has symptom back pain" ;
+    schema1:version 2306702134 ;
+    ns1:identifiers 6 ;
+    ns1:sitelinks 1 ;
+    ns1:statements 15 ;
+    skos:altLabel "Brucella melitensis brucellosis",
+        "melitensisbrucellose" ;
+    p:P1692 <http://www.wikidata.org/entity/statement/Q1355765-C56978F9-DEFA-42F3-BF6E-24F9EED7739C> ;
+    p:P1995 <http://www.wikidata.org/entity/statement/Q1355765-29FDF752-0E22-48A6-98AE-74D8CAFACFB8> ;
+    p:P2671 <http://www.wikidata.org/entity/statement/Q1355765-F867C5C5-EEEE-4950-A3E5-EAEDB4FCA6EB> ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q1355765-10a4c674-4c1c-5dfd-e1ba-14252e241327> ;
+    p:P2888 <http://www.wikidata.org/entity/statement/Q1355765-505D909A-887F-4FB3-98CB-0D862F657787>,
+        <http://www.wikidata.org/entity/statement/Q1355765-CED16992-BA5E-4FDD-AE2A-3C568A005604> ;
+    p:P2892 <http://www.wikidata.org/entity/statement/Q1355765-DA92E8CC-F2EE-4E38-8143-ABA1B19E26BE> ;
+    p:P31 <http://www.wikidata.org/entity/statement/Q1355765-06AC3A12-73E3-44C0-9A61-5E5D7865ECCB> ;
+    p:P4229 <http://www.wikidata.org/entity/statement/Q1355765-0DD43FF2-2824-4CD6-BCE5-25E3DF267EF3> ;
+    p:P5008 <http://www.wikidata.org/entity/statement/Q1355765-B447D6E1-86AF-4303-8E02-FAF65A8437EF> ;
+    p:P5270 <http://www.wikidata.org/entity/statement/Q1355765-96872CBF-0911-411C-9098-BCB5E3BAC41F> ;
+    p:P699 <http://www.wikidata.org/entity/statement/Q1355765-FC71FBD8-1813-4618-A8C8-591F7A78B015> ;
+    p:P780 <http://www.wikidata.org/entity/statement/Q1355765-FC302755-2605-4E99-B6DB-051B52AAB71E> ;
+    p:P7807 <http://www.wikidata.org/entity/statement/Q1355765-4ffcdf2b-4fde-d9f9-4f17-3a28f09f0cd8> ;
+    p:P828 <http://www.wikidata.org/entity/statement/Q1355765-69df8e48-478c-851d-085d-be3997b09d6c> ;
+    ns2:P2671 <http://g.co/kg/g/122sftzf> ;
+    ns2:P5270 <http://purl.obolibrary.org/obo/MONDO_0001972> ;
+    ns2:P699 <http://purl.obolibrary.org/obo/DOID_DOID:14456> ;
+    wdt:P1692 "023.0" ;
+    wdt:P1995 wd:Q788926 ;
+    wdt:P2671 "/g/122sftzf" ;
+    wdt:P279 wd:Q156050 ;
+    wdt:P2888 <http://identifiers.org/doid/DOID:14456>,
+        do:14456 ;
+    wdt:P2892 "C0302362" ;
+    wdt:P31 wd:Q112193867 ;
+    wdt:P4229 "A23.0" ;
+    wdt:P5008 wd:Q4099686 ;
+    wdt:P5270 "MONDO_0001972" ;
+    wdt:P699 "DOID:14456" ;
+    wdt:P780 wd:Q5781808 ;
+    wdt:P7807 "1716687275" ;
+    wdt:P828 wd:Q3512031 .
+
+<http://www.wikidata.org/entity/statement/Q1355765-06AC3A12-73E3-44C0-9A61-5E5D7865ECCB> ps:P31 wd:Q112193867 .
+
