@@ -3,7 +3,7 @@ requires = ["hatchling", "uv-dynamic-versioning"]
 build-backend = "hatchling.build"
 
 [project]
-name = "PyJSG"
+name = "PyShEx"
 description = "Python ShEx interpreter"
 authors = [
     { name = "Harold Solbrig", email = "solbrig@jhu.edu" },
@@ -21,7 +21,7 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "Topic :: Software Development :: Compiler",
+    "Topic :: Software Development :: Compilers",
     "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
