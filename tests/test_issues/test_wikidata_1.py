@@ -1,14 +1,12 @@
-import unittest
-
 import os
 
 from rdflib import Graph, Namespace
 
 from pyshex import ShExEvaluator, PrefixLibrary
 from pyshex.evaluate import evaluate
-from pyshex.shapemap_structure_and_language.p3_shapemap_structure import START
 
-shex_schema = """
+
+SHEX_SCHEMA = """
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX p: <http://www.wikidata.org/prop/>
@@ -17,7 +15,6 @@ PREFIX prv: <http://www.wikidata.org/prop/reference/value/>
 PREFIX pv: <http://www.wikidata.org/prop/value/>
 PREFIX ps: <http://www.wikidata.org/prop/statement/>
 PREFIX gw: <http://genewiki.shape/>
-
 
 start = @gw:cancer
 gw:cancer {
@@ -34,22 +31,17 @@ gw:cancer {
 """
 
 WIKIDATA = Namespace("http://www.wikidata.org/entity/")
+TEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'Q18557122.ttl')
 
 
-class WikiDataTestCase(unittest.TestCase):
-    test_path = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'data',  'Q18557122.ttl')
-
-    def test_wikidata_1(self):
-        g = Graph()
-        g.parse(self.test_path, format="turtle")
-        rslt, _ = evaluate(g, shex_schema, WIKIDATA.Q18557112)
-        self.assertTrue(rslt)
-
-    def test_wikidata_2(self):
-        pfx = PrefixLibrary(shex_schema, wikidata="http://www.wikidata.org/entity/")
-        evaluator = ShExEvaluator(self.test_path, shex_schema, pfx.WIKIDATA.Q18557112)
-        print(evaluator.evaluate(start=pfx.GW.cancer, debug=False))
+def test_wikidata_evaluate_function() -> None:
+    g = Graph()
+    g.parse(TEST_PATH, format="turtle")
+    rslt, _ = evaluate(g, SHEX_SCHEMA, WIKIDATA.Q18557112)
+    assert rslt
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_wikidata_evaluator_class() -> None:
+    pfx = PrefixLibrary(SHEX_SCHEMA, wikidata="http://www.wikidata.org/entity/")
+    evaluator = ShExEvaluator(TEST_PATH, SHEX_SCHEMA, pfx.WIKIDATA.Q18557112)
+    print(evaluator.evaluate(start=pfx.GW.cancer, debug=False))

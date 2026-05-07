@@ -1,9 +1,9 @@
-import unittest
 from pprint import pprint
 
 from pyshex import ShExEvaluator
 
-shex = """
+
+SHEX = """
 prefix : <http://examples.org/ex/>
 
 start = @<S3>
@@ -13,38 +13,41 @@ start = @<S3>
 <S3> CLOSED {&<S1TP>; &<S2TP>;}
 """
 
-passing = """
+PASSING = """
 prefix : <http://examples.org/ex/>
 
 :t :ex1a 1; :ex1b 2; :ex2a 3; :ex2b 4 .
 """
 
-failing_1 = """
+FAILING_1 = """
 prefix : <http://examples.org/ex/>
 
 :t :ex1a 1; :ex1b 2; :ex2a 3 .
 """
 
-failing_2 = """
+FAILING_2 = """
 prefix : <http://examples.org/ex/>
 
 :t :ex1a 1; :ex1b 2; :ex2a 3; :ex2b 4; a :foo.
 """
 
-
-class TeLabelTestCase(unittest.TestCase):
-    def test_te_labels(self):
-        """ Test triple expression labels """
-        e = ShExEvaluator(rdf=passing, schema=shex, focus="http://examples.org/ex/t").evaluate(debug=False)
-        pprint(e)
-        self.assertTrue(e[0].result)
-
-        e = ShExEvaluator(rdf=failing_1, schema=shex, focus="http://examples.org/ex/t").evaluate()
-        self.assertFalse(e[0].result)
-
-        e = ShExEvaluator(rdf=failing_2, schema=shex, focus="http://examples.org/ex/t").evaluate()
-        self.assertFalse(e[0].result)
+FOCUS = "http://examples.org/ex/t"
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_te_labels_passing() -> None:
+    """Triple expression labels: conformant node should pass."""
+    results = ShExEvaluator(rdf=PASSING, schema=SHEX, focus=FOCUS).evaluate(debug=False)
+    pprint(results)
+    assert results[0].result
+
+
+def test_te_labels_failing_missing_predicate() -> None:
+    """Triple expression labels: missing ex2b predicate should fail."""
+    results = ShExEvaluator(rdf=FAILING_1, schema=SHEX, focus=FOCUS).evaluate()
+    assert not results[0].result
+
+
+def test_te_labels_failing_extra_type_arc() -> None:
+    """Triple expression labels: extra rdf:type arc on CLOSED shape should fail."""
+    results = ShExEvaluator(rdf=FAILING_2, schema=SHEX, focus=FOCUS).evaluate()
+    assert not results[0].result

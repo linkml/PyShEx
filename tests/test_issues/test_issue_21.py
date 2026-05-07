@@ -1,8 +1,8 @@
-import unittest
-
+import pytest
 from pyshex import ShExEvaluator
 
-shex = """
+
+SHEX = """
 BASE <http://example.org/ex/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX ex: <http://ex.example/#>
@@ -11,9 +11,9 @@ PREFIX : <http://hl7.org/fhir/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 start = @<BloodPressureMeasurementShape>
-<PatientShape> {                    # A Patient has:
-:name xsd:string*;                        #   one or more names
-:birthdate xsd:date?   ;          #   and an optional birthdate.
+<PatientShape> {
+:name xsd:string*;
+:birthdate xsd:date?;
 }
 <BloodPressureMeasurementShape> {
   rdfs:label  xsd:string ;
@@ -60,9 +60,8 @@ start = @<BloodPressureMeasurementShape>
 }
 """
 
-rdf = """
+RDF = """
 BASE <http://example.org/ex/>
- 
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX ex: <http://ex.example/#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -89,7 +88,6 @@ PREFIX foaf: <http://xmlns.com/foaf/0.1/>
   :position <sittingposition> .
 <DEP1>
   :type <typeIV>.
-  
 <BPM1>
   a :BloodPressureMeasurementShape ;
   rdfs:label "First BP measurement" ;
@@ -102,19 +100,19 @@ PREFIX foaf: <http://xmlns.com/foaf/0.1/>
   :location <BPMLocation1> ;
   :type <DEP1> ;
   :position <BodyPosition1> .
-  """
+"""
+
+FOCUS = "http://example.org/ex/BPM1"
 
 
-class BPM1HangUnitTest(unittest.TestCase):
-    def test_hang(self):
-        results = ShExEvaluator().evaluate(rdf, shex, focus="http://example.org/ex/BPM1", debug=False)
-        for r in results:
-            if r.result:
-                print("PASS")
-            else:
-                print(f"FAIL: {r.reason}")
-        self.assertEqual([False], [r.result for r in results])
+def test_bpm1_evaluates_as_failing() -> None:
+    """BPM1 should fail ShEx validation (regression: previously caused a hang)."""
+    results = ShExEvaluator().evaluate(RDF, SHEX, focus=FOCUS, debug=False)
 
+    for r in results:
+        if r.result:
+            print("PASS")
+        else:
+            print(f"FAIL: {r.reason}")
 
-if __name__ == '__main__':
-    unittest.main()
+    assert [r.result for r in results] == [False]

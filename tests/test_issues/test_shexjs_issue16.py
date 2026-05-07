@@ -1,5 +1,3 @@
-import unittest
-
 from rdflib import Graph, Namespace, XSD, Literal
 
 from pyshex import ShExEvaluator
@@ -8,7 +6,7 @@ from pyshex import ShExEvaluator
 FHIR = Namespace("http://hl7.org/fhir")
 EX = Namespace("http://example.org/")
 
-shex = f"""PREFIX : <{FHIR}>
+SHEX = f"""PREFIX : <{FHIR}>
 PREFIX xsd: <{XSD}>
 
 start = @:ObservationShape
@@ -19,15 +17,10 @@ start = @:ObservationShape
 """
 
 
-class ShexjsIssue16TestCase(unittest.TestCase):
-    # Test of https://github.com/shexSpec/shex.js/issues/16
-
-    def test_infinite_loop(self):
-        g = Graph()
-        g.add((EX.Obs1, FHIR.status, Literal("final")))
-        e = ShExEvaluator(rdf=g, schema=shex, focus=EX.Obs1, start=FHIR.ObservationShape, debug=False)
-        self.assertTrue(e.evaluate()[0].result)
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_no_infinite_loop_on_repeated_optional_group() -> None:
+    """shex.js issue #16: evaluation should terminate on repeated optional shape groups."""
+    g = Graph()
+    g.add((EX.Obs1, FHIR.status, Literal("final")))
+    results = ShExEvaluator(rdf=g, schema=SHEX, focus=EX.Obs1,
+                            start=FHIR.ObservationShape, debug=False).evaluate()
+    assert results[0].result

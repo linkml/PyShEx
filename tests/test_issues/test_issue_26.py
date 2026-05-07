@@ -1,23 +1,12 @@
 import os
-import unittest
-from contextlib import redirect_stdout
-from io import StringIO
-
 from pyshex.shex_evaluator import evaluate_cli
 
-data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-validation_dir = os.path.join(data_dir, 'validation')
-rdffile = os.path.join(validation_dir, 'anon_start.ttl')
-shexfile = os.path.join(validation_dir, 'anon_start.shex')
+
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+VALIDATION_DIR = os.path.join(DATA_DIR, 'validation')
+RDF_FILE = os.path.join(VALIDATION_DIR, 'anon_start.ttl')
+SHEX_FILE = os.path.join(VALIDATION_DIR, 'anon_start.shex')
 
 
-class Issue26TestCase(unittest.TestCase):
-
-    @unittest.skipIf(False, "Issue 26 needs to be fixed")
-    def test_anon_start(self):
-        self.assertEqual(0, evaluate_cli(f"{rdffile} {shexfile} -A"))
-
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_anon_start() -> None:
+    assert evaluate_cli(f"{RDF_FILE} {SHEX_FILE} -A") == 0

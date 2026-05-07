@@ -1,18 +1,17 @@
-import unittest
-
 from rdflib import Namespace, RDF
 
 from pyshex import ShExEvaluator
 
+
 BASE = Namespace("https://w3id.org/biolink/vocab/")
 
-rdf = f"""
+RDF_DATA = f"""
 @prefix : <{BASE}> .
 @prefix rdf: <{RDF}> .
 :s rdf:type :X .
 """
 
-shex = f"""
+SHEX = f"""
 BASE <{BASE}>
 
 <BiologicalProcess> ( 
@@ -26,7 +25,7 @@ BASE <{BASE}>
 <X> {{&<BiologicalProcess_tes>; a [<X>]}}
 """
 
-shex2 = f"""
+SHEX2 = f"""
 BASE <{BASE}>
 
 <BiologicalProcess> ( 
@@ -41,20 +40,17 @@ BASE <{BASE}>
 """
 
 
-class Issue51TestCase(unittest.TestCase):
-    def test_inner_te(self):
-        """ Test recognition of an inner triple expression """
-
-        e = ShExEvaluator(rdf=rdf, schema=shex, focus=BASE.s, start=BASE.X).evaluate()
-        self.assertTrue(e[0].result)
-
-    def test_te_message(self):
-        """ Test the error message (and eventually the startup test) """
-        e = ShExEvaluator(rdf=rdf, schema=shex2, focus=BASE.s, start=BASE.X).evaluate()
-        self.assertFalse(e[0].result)
-        self.assertEqual('  Testing :s against shape https://w3id.org/biolink/vocab/X\n'
-                         '    https://w3id.org/biolink/vocab/missing: Reference not found', e[0].reason)
+def test_inner_triple_expression_recognised() -> None:
+    """Issue #51: an inner triple expression should be recognised and pass validation."""
+    results = ShExEvaluator(rdf=RDF_DATA, schema=SHEX, focus=BASE.s, start=BASE.X).evaluate()
+    assert results[0].result
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_missing_te_reference_fails_with_reason() -> None:
+    """Issue #51: a reference to a missing triple expression should fail with a clear message."""
+    results = ShExEvaluator(rdf=RDF_DATA, schema=SHEX2, focus=BASE.s, start=BASE.X).evaluate()
+    assert not results[0].result
+    assert results[0].reason == (
+        '  Testing :s against shape https://w3id.org/biolink/vocab/X\n'
+        '    https://w3id.org/biolink/vocab/missing: Reference not found'
+    )
