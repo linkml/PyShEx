@@ -1,38 +1,42 @@
-import os
-import unittest
+from pathlib import Path
 
 from rdflib import Graph, BNode
 
 from pyshex.utils.n3_mapper import N3Mapper
 
 
-class N3MapperUnitTest(unittest.TestCase):
-    def test_basics(self):
-        source_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'source')
-        target_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'object')
-        new_files = False
+def test_basics():
+    base_dir = Path(__file__).resolve().parent
+    source_dir = base_dir / "source"
+    target_dir = base_dir / "object"
+    target_dir.mkdir(exist_ok=True)
 
-        os.makedirs(target_dir, exist_ok=True)
-        self.maxDiff = None
-        for f in os.listdir(source_dir):
-            fpath = os.path.join(source_dir, f)
-            if os.path.isfile(fpath):
-                g = Graph()
-                g.parse(fpath, format='turtle')
-                mapper = N3Mapper(g.namespace_manager)
-                result = '\n'.join([mapper.n3(t)
-                                    for t in sorted(list(g),
-                                                    key=lambda t: (1, t) if isinstance(t[0], BNode) else (0, t))])
-                tpath = os.path.join(target_dir, f)
-                if not os.path.exists(tpath):
-                    print(f"Creating: {tpath}")
-                    with open(tpath, 'w') as t:
-                        t.write(result)
-                    new_files = True
-                with open(tpath) as t:
-                    self.assertEqual(t.read(), result)
-            self.assertFalse(new_files, "New test files created - rerun")
+    new_files = False
 
+    for fpath in source_dir.iterdir():
+        if not fpath.is_file():
+            continue
 
-if __name__ == '__main__':
-    unittest.main()
+        g = Graph()
+        g.parse(str(fpath), format="turtle")
+
+        mapper = N3Mapper(g.namespace_manager)
+
+        result = "\n".join(
+            mapper.n3(t)
+            for t in sorted(
+                g,
+                key=lambda t: (1, t) if isinstance(t[0], BNode) else (0, t),
+            )
+        )
+
+        tpath = target_dir / fpath.name
+
+        if not tpath.exists():
+            print(f"Creating: {tpath}")
+            tpath.write_text(result)
+            new_files = True
+
+        assert tpath.read_text() == result
+
+    assert not new_files, "New test files created - rerun tests"

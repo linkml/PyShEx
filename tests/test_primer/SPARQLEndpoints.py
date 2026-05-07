@@ -1,44 +1,110 @@
-from pyshex.shex_evaluator import ShExEvaluator
-from pyshex.user_agent import SlurpyGraphWithAgent
-from pyshex.utils.sparql_query import SPARQLQuery
+from pyshex import ShExEvaluator
 
-# SPARQL Endpoint
-endpoint = 'http://wifo5-04.informatik.uni-mannheim.de/drugbank/sparql'
 
-# SPARQL Query
-sparql = """
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX vocabClass: <http://wifo5-04.informatik.uni-mannheim.de/drugbank/vocab/resource/class/>
+DS_SHEX = """
+PREFIX :   <http://example.org/>
+PREFIX schema: <http://schema.org/>
+PREFIX techdoc: <http://schema.org/>
+BASE <http://schema.org/shex>
 
-SELECT DISTINCT ?item WHERE {
-  ?item rdf:type vocabClass:Offer
-}
-LIMIT 10
+<#BasicUrlSh> ((IRI OR LITERAL) AND CLOSED {}  AND /^(https?|gopher|ftps?):/)
+
+<#SchemaText> LITERAL OR xsd:string 
+
+<#SubDataset> <#SubDatasetKnownClosure> OR { rdfs:subClassOf @<#SubDataset> }
+
+<#SubDatasetKnownClosure> [schema:Dataset schema:DataFeed]
+
+<#SubWork> [schema:CreativeWork] OR { rdfs:subClassOf @<#SubWork> }
+
+<#BasicDatasetShape> EXTRA a
+  {   
+    a <#SubDataset>;
+    schema:name @<#SchemaText> +;
+    schema:url @<#BasicUrlSh> +;
+    schema:sameAs @<#BasicUrlSh> *;
+    schema:thumbnailUrl @<#BasicUrlSh> *;
+  }  
 """
 
-# ShEx Expression
-shex = """
-PREFIX drugbank: <http://wifo5-04.informatik.uni-mannheim.de/drugbank/resource/drugbank/>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX : <http://example.org/t1/>
+GOOD_EG_1 = """{
+      "@id": "http://example.org/good_",
+      "@type":"Dataset",
+      "@context": {
+          "@language": "en",
+          "@vocab": "http://schema.org/"
+      },
+      "name":"NCDC Storm Events Database",
+      "description":"Storm Data is provided by the National Weather Service (NWS) and contain statistics on...",
+      "url":"https://catalog.data.gov/dataset/ncdc-storm-events-database",
+      "sameAs":"https://gis.ncdc.noaa.gov/geoportal/catalog/search/resource/details.page?id=gov.noaa.ncdc:C00510",
+      "identifier": ["https://doi.org/10.1000/182",
+                     "https://identifiers.org/ark:/12345/fk1234"],
+      "keywords":[
+         "ATMOSPHERE > ATMOSPHERIC PHENOMENA > CYCLONES",
+         "ATMOSPHERE > ATMOSPHERIC PHENOMENA > DROUGHT",
+         "ATMOSPHERE > ATMOSPHERIC PHENOMENA > FOG",
+         "ATMOSPHERE > ATMOSPHERIC PHENOMENA > FREEZE"
+      ],
+      "license" : "https://creativecommons.org/publicdomain/zero/1.0/",
+      "hasPart" : [
+        {
+          "@type": "Dataset",
+          "name": "Sub dataset 01",
+          "description": "Informative description of the first subdataset...",
+          "license" : "https://creativecommons.org/publicdomain/zero/1.0/"
+        },
+        {
+          "@type": "Dataset",
+          "name": "Sub dataset 02",
+          "description": "Informative description of the second subdataset...",
+          "license" : "https://creativecommons.org/publicdomain/zero/1.0/"
+        }
+      ],
+      "creator":{
+         "@type":"Organization",
+         "url": "https://www.ncei.noaa.gov/",
+         "name":"OC/NOAA/NESDIS/NCEI > National Centers for Environmental Information, NESDIS, NOAA, U.S. Department of Commerce",
+         "contactPoint":{
+            "@type":"ContactPoint",
+            "contactType": "customer service",
+            "telephone":"+1-828-271-4800",
+            "email":"ncei.orders@noaa.gov"
+         }
+      },
+      "includedInDataCatalog":{
+         "@type":"DataCatalog",
+         "name":"data.gov"
+      },
+      "distribution":[
+         {
+            "@type":"DataDownload",
+            "encodingFormat":"CSV",
+            "contentUrl":"http://www.ncdc.noaa.gov/stormevents/ftp.jsp"
+         },
+         {
+            "@type":"DataDownload",
+            "encodingFormat":"XML",
+            "contentUrl":"http://gis.ncdc.noaa.gov/all-records/catalog/search/resource/details.page?id=gov.noaa.ncdc:C00510"
+         }
+      ],
+      "temporalCoverage":"1950-01-01/2013-12-18",
+      "spatialCoverage":{
+         "@type":"Place",
+         "geo":{
+            "@type":"GeoShape",
+            "box":"18.0 -65.0 72.0 172.0"
+         }
+      }
+    }"""
 
-START=@:S1
-
-:S1 {foaf:page IRI+ ;                     # one or more foaf pages
-     drugbank:limsDrugId xsd:string       # ane exactly one drug id
-}"""
+FOCUS = "http://example.org/good_"
+START = "http://schema.org/shex#BasicDatasetShape"
 
 
-# Do the evaluation
-result = ShExEvaluator(SlurpyGraphWithAgent(endpoint),                                   # RDF source
-                       shex,                                                    # ShEx definition
-                       SPARQLQuery(endpoint, sparql).focus_nodes()).evaluate()  # Source off focus nodes
-
-# Print the results
-for r in result:
-    print(f"{r.focus}: ", end="")
-    if not r.result:
-        print(f"FAIL: {r.reason}")
-    else:
-        print("PASS")
+def test_basic_dataset_shape_conforms() -> None:
+    results = ShExEvaluator(schema=DS_SHEX, start=START).evaluate(
+        GOOD_EG_1, focus=FOCUS, rdf_format="json-ld"
+    )
+    failures = [(r.focus, r.reason) for r in results if not r.result]
+    assert not failures, "ShEx validation failed:\n" + "\n".join(r for _, r in failures)

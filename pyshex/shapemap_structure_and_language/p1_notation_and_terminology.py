@@ -1,5 +1,5 @@
 import re
-from typing import Union, Tuple, Iterator, Optional
+from typing import Iterator
 
 from rdflib import URIRef, BNode, Literal, Graph
 
@@ -15,13 +15,13 @@ from rdflib import URIRef, BNode, Literal, Graph
 
 
 # We have no idea what is intended in the above definition -- for the moment we'll define it as a function
-# ShapeExpression = Callable[[List[ShExJ.Shape], bool]]
-Node = Union[URIRef, BNode, Literal]
+# ShapeExpression = Callable[[list[ShExJ.Shape], bool]]
+Node = URIRef | BNode | Literal
 FocusNode = Node
-TripleSubject = Union[URIRef, BNode]
+TripleSubject = URIRef | BNode
 TriplePredicate = URIRef
-TripleObject = Union[URIRef, Literal, BNode]
-Triple = Tuple[TripleSubject, TriplePredicate, TripleObject]
+TripleObject = URIRef | Literal | BNode
+Triple = tuple[TripleSubject, TriplePredicate, TripleObject]
 
 
 class RDFTriple(tuple):
@@ -46,7 +46,7 @@ class RDFTriple(tuple):
 
 
 class RDFGraph(set):
-    def __init__(self, ts: Optional[Union[Iterator[RDFTriple], Iterator[Triple]]]=None) -> None:
+    def __init__(self, ts: Iterator[RDFTriple] | Iterator[Triple] | None = None) -> None:
         super().__init__([t if isinstance(t, RDFTriple) else RDFTriple(t) for t in ts] if ts is not None else [])
 
     def __str__(self) -> str:

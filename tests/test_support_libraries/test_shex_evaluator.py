@@ -2,8 +2,6 @@ import os
 from rdflib import Graph, URIRef
 
 from pyshex import ShExEvaluator, PrefixLibrary
-import unittest
-
 from pyshex.shapemap_structure_and_language.p3_shapemap_structure import START
 
 shex_schema = """
@@ -36,33 +34,27 @@ loc_prefixes = PrefixLibrary(None,
                              gw="http://genewiki.shape/")
 
 
-class ShExEvaluatorTestCase(unittest.TestCase):
-    def test_empty_constructor(self):
-        evaluator = ShExEvaluator()
-        # rdflib no longer emits unused prefixes -- an empty evaluator is now empty
-        self.assertEqual("", evaluator.rdf.strip())
-        self.assertIsNone(evaluator.schema)
-        self.assertIsNone(evaluator.focus)
-        self.assertEqual([], evaluator.foci)
-        self.assertEqual([START], evaluator.start)
-        self.assertEqual("turtle", evaluator.rdf_format)
-        self.assertTrue(isinstance(evaluator.g, Graph))
-
-    def test_complete_constructor(self):
-        test_rdf = os.path.join(os.path.split(os.path.abspath(__file__))[0], '..', 'test_issues', 'data', 'Q18557122.ttl')
-        evaluator = ShExEvaluator(test_rdf, shex_schema,
-                                  [loc_prefixes.WIKIDATA, loc_prefixes.WIKIDATA.Q18557112],
-                                  loc_prefixes.WIKIDATA.cancer)
-        results = evaluator.evaluate()
-        self.assertFalse(results[0].result)
-        self.assertEqual(URIRef('http://www.wikidata.org/entity/'), results[0].focus)
-        self.assertEqual(URIRef('http://www.wikidata.org/entity/cancer'), results[0].start)
-        self.assertEqual('Focus: http://www.wikidata.org/entity/ not in graph', results[0].reason)
-        self.assertEqual(URIRef('http://www.wikidata.org/entity/Q18557112'), results[1].focus)
-        self.assertEqual(URIRef('http://www.wikidata.org/entity/cancer'), results[1].start)
-        self.assertEqual('  Shape: http://www.wikidata.org/entity/cancer not found in Schema',
-                         results[1].reason)
+def test_empty_constructor():
+    evaluator = ShExEvaluator()
+    assert evaluator.rdf.strip() == ""
+    assert evaluator.schema is None
+    assert evaluator.focus is None
+    assert evaluator.foci == []
+    assert evaluator.start == [START]
+    assert evaluator.rdf_format == "turtle"
+    assert isinstance(evaluator.g, Graph)
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_complete_constructor():
+    test_rdf = os.path.join(os.path.split(os.path.abspath(__file__))[0], '..', 'test_issues', 'data', 'Q18557122.ttl')
+    evaluator = ShExEvaluator(test_rdf, shex_schema,
+                              [loc_prefixes.WIKIDATA, loc_prefixes.WIKIDATA.Q18557112],
+                              loc_prefixes.WIKIDATA.cancer)
+    results = evaluator.evaluate()
+    assert not results[0].result
+    assert results[0].focus == URIRef('http://www.wikidata.org/entity/')
+    assert results[0].start == URIRef('http://www.wikidata.org/entity/cancer')
+    assert results[0].reason == 'Focus: http://www.wikidata.org/entity/ not in graph'
+    assert results[1].focus == URIRef('http://www.wikidata.org/entity/Q18557112')
+    assert results[1].start == URIRef('http://www.wikidata.org/entity/cancer')
+    assert results[1].reason == '  Shape: http://www.wikidata.org/entity/cancer not found in Schema'

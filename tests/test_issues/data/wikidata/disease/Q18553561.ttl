@@ -1,0 +1,73 @@
+@prefix do: <http://purl.obolibrary.org/obo/DOID_> .
+@prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns2: <http://wikiba.se/ontology#> .
+@prefix p: <http://www.wikidata.org/prop/> .
+@prefix ps: <http://www.wikidata.org/prop/statement/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wd: <http://www.wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+wd:Q18553561 rdfs:label "carcinome vaginal",
+        "vagina karcinomo",
+        "vaginal carcinoma",
+        "vaginalni karcinom" ;
+    schema1:dateModified "2025-10-24T10:12:36+00:00"^^xsd:dateTime ;
+    schema1:description "Krankheit",
+        "maladie",
+        "vaginal cancer that has material basis in epithelial cells",
+        "хвороба" ;
+    schema1:version 2421203039 ;
+    ns2:identifiers 6 ;
+    ns2:sitelinks 1 ;
+    ns2:statements 15 ;
+    skos:altLabel "Cancer of Vagina",
+        "Cancer of the Vagina",
+        "Carcinoma of Vagina",
+        "Carcinoma of the Vagina",
+        "Vagina Cancer",
+        "Vaginal Carcinoma",
+        "Vaginal cancer, NOS",
+        "Vaginal malignant epithelial tumor",
+        "karcinom nožnice",
+        "karcinom vagine",
+        "vagina carcinoma",
+        "vaginal cancer" ;
+    p:P1550 <http://www.wikidata.org/entity/statement/Q18553561-237BEA8A-633B-49D2-BCA4-A6150984EE80> ;
+    p:P1748 <http://www.wikidata.org/entity/statement/Q18553561-2AAA0A2B-F56E-4162-B945-73B511185245> ;
+    p:P2671 <http://www.wikidata.org/entity/statement/Q18553561-BC706DB3-4A8E-46CE-9F01-D0FE1C4D57B1> ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q18553561-A7189823-C89C-49F8-87AD-1A4F6ED1F8D3>,
+        <http://www.wikidata.org/entity/statement/Q18553561-D758972A-8E4C-4A32-BDDD-C82F625B652A>,
+        <http://www.wikidata.org/entity/statement/Q18553561-DD227958-1179-4403-911C-045965AA6CBF> ;
+    p:P2888 <http://www.wikidata.org/entity/statement/Q18553561-008DA475-719A-4BF8-9212-AB82589FB2E0>,
+        <http://www.wikidata.org/entity/statement/Q18553561-8CEE4065-4F7B-40B8-91A1-A30CD27C5B21>,
+        <http://www.wikidata.org/entity/statement/Q18553561-FDF38291-A0E1-4122-8672-BC44377320F9> ;
+    p:P2892 <http://www.wikidata.org/entity/statement/Q18553561-8D51ADA5-7BC7-450E-800B-3675103FE02D> ;
+    p:P31 <http://www.wikidata.org/entity/statement/Q18553561-508F5EAE-BA9E-49F3-A8CD-E76A19D35441> ;
+    p:P4229 <http://www.wikidata.org/entity/statement/Q18553561-7E9C04F2-EA23-409A-8A7E-6294B2ADB15F> ;
+    p:P5008 <http://www.wikidata.org/entity/statement/Q18553561-5B97FB49-A9B3-4244-BE3B-C5E5EB00BCF3> ;
+    p:P5270 <http://www.wikidata.org/entity/statement/Q18553561-F7766A81-2268-40B2-B6F0-7EA3627C658F> ;
+    p:P699 <http://www.wikidata.org/entity/statement/Q18553561-F0F13D0D-40FA-473C-9FDD-85DF1ED9AB5E> ;
+    ns1:P2671 <http://g.co/kg/g/11j86wfvys> ;
+    ns1:P5270 <http://purl.obolibrary.org/obo/MONDO_0015867> ;
+    ns1:P699 <http://purl.obolibrary.org/obo/DOID_DOID:0050918> ;
+    wdt:P1550 "180247" ;
+    wdt:P1748 "C3917" ;
+    wdt:P2671 "/g/11j86wfvys" ;
+    wdt:P279 wd:Q1807522,
+        wd:Q33525,
+        wd:Q55785788 ;
+    wdt:P2888 <http://identifiers.org/doid/DOID:0050918>,
+        do:0050918,
+        <http://www.orpha.net/ORDO/Orphanet_180247> ;
+    wdt:P2892 "C0262659" ;
+    wdt:P31 wd:Q112193867 ;
+    wdt:P4229 "C52" ;
+    wdt:P5008 wd:Q4099686 ;
+    wdt:P5270 "MONDO_0015867" ;
+    wdt:P699 "DOID:0050918" .
+
+<http://www.wikidata.org/entity/statement/Q18553561-508F5EAE-BA9E-49F3-A8CD-E76A19D35441> ps:P31 wd:Q112193867 .
+

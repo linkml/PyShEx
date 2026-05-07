@@ -1,13 +1,10 @@
 import os
-import unittest
-
-from rdflib import Namespace
-
 from pyshex import ShExEvaluator
 
-BASE = Namespace("https://w3id.org/biolink/vocab/")
 
-rdf = f"""
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+
+RDF_DATA = """
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -21,18 +18,12 @@ PREFIX WD: <http://example.org/UNKNOWN/WD/>
   <https://w3id.org/biolink/vocab/systematic_synonym> "BIOD00052" .
 """
 
-
-class Issue51TestCase(unittest.TestCase):
-    test_data = os.path.join(os.path.split(os.path.abspath(__file__))[0], 'data')
-
-    def test_performance_problem(self):
-        """ Test a performance problem brought about by two possible type arcs in a definition """
-
-        e = ShExEvaluator(rdf=rdf, schema=os.path.join(self.test_data, 'shex', 'issue_54.shex'),
-                          focus="http://identifiers.org/drugbank:DB00005",
-                          start="https://w3id.org/biolink/vocab/Drug").evaluate()
-        self.assertTrue(e[0].result)
+FOCUS = "http://identifiers.org/drugbank:DB00005"
+START = "https://w3id.org/biolink/vocab/Drug"
+SHEX_FILE = os.path.join(DATA_DIR, 'shex', 'issue_54.shex')
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_two_type_arcs_performance() -> None:
+    """Issue #54: two possible type arcs in a definition should not cause a performance problem."""
+    results = ShExEvaluator(rdf=RDF_DATA, schema=SHEX_FILE, focus=FOCUS, start=START).evaluate()
+    assert results[0].result

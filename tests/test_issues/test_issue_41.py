@@ -1,11 +1,13 @@
-import unittest
+import pytest
 from pprint import pprint
 
 from rdflib import Graph, Namespace
 
 from pyshex import ShExEvaluator
+from pyshex.evaluate import evaluate
 
-rdf = """
+
+RDF_DATA = """
 @prefix : <http://example.org/model/> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -19,7 +21,7 @@ rdf = """
     foaf:lastName "smith" .
 """
 
-shex = """
+SHEX = """
 <http://example.org/sample/example1/String> <http://www.w3.org/2001/XMLSchema#string>
 <http://example.org/sample/example1/Int> <http://www.w3.org/2001/XMLSchema#integer>
 <http://example.org/sample/example1/Boolean> <http://www.w3.org/2001/XMLSchema#boolean>
@@ -37,21 +39,17 @@ EXC = Namespace("http://example.org/context/")
 EXE = Namespace("http://example.org/sample/example1/")
 
 
-class Issue41TestCase(unittest.TestCase):
-    def test_closed(self):
-        """ Test closed definition """
-
-        e = ShExEvaluator(rdf=rdf, schema=shex, focus=EXC['42'], start=EXE.Person)
-        
-        pprint(e.evaluate())
-        self.assertFalse(e.evaluate()[0].result)
-
-        from pyshex.evaluate import evaluate
-        g = Graph()
-        g.parse(data=rdf, format="turtle")
-        pprint(evaluate(g, shex, focus=EXC['42'], start=EXE.Person))
+def test_closed_shape_fails() -> None:
+    """Issue #41: CLOSED shape should reject the node due to undeclared rdf:type triple."""
+    e = ShExEvaluator(rdf=RDF_DATA, schema=SHEX, focus=EXC['42'], start=EXE.Person)
+    results = e.evaluate()
+    pprint(results)
+    assert not results[0].result
 
 
-
-if __name__ == '__main__':
-    unittest.main()
+def test_closed_shape_via_evaluate_function() -> None:
+    """Issue #41: evaluate() function should agree with ShExEvaluator on the CLOSED shape."""
+    g = Graph()
+    g.parse(data=RDF_DATA, format="turtle")
+    results = evaluate(g, SHEX, focus=EXC['42'], start=EXE.Person)
+    pprint(results)

@@ -1,15 +1,16 @@
-import unittest
+import pytest
 
 from pyshex import ShExEvaluator, PrefixLibrary
 
-shex = """
+
+SHEX = """
 PREFIX ex: <http://example.org/ex/>
 START = @<S>
 
 <S> { ex:p . }
 """
 
-rdf = """
+RDF_DATA = """
 BASE <http://example.org/ex/>
 
 <s> <p> "Stuff" .
@@ -18,19 +19,25 @@ BASE <http://example.org/ex/>
 
 NUM_ITERS = 3
 
-class Issue42TestCase(unittest.TestCase):
-    def test_multiple_evaluate(self):
-        """ Test calling evaluate multiple times in a row """
-        p = PrefixLibrary(shex)
-        e = ShExEvaluator(rdf=rdf, schema=shex, focus=p.EX.s)
 
-        # conformant
-        for _ in range(NUM_ITERS):
-            self.assertTrue(e.evaluate()[0].result)
+@pytest.fixture(scope="module")
+def evaluator() -> ShExEvaluator:
+    p = PrefixLibrary(SHEX)
+    return ShExEvaluator(rdf=RDF_DATA, schema=SHEX, focus=p.EX.s)
 
-        # non-conformant
-        for _ in range(NUM_ITERS):
-            self.assertFalse(e.evaluate(focus=p.EX.a)[0].result)
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.fixture(scope="module")
+def pl() -> PrefixLibrary:
+    return PrefixLibrary(SHEX)
+
+
+def test_repeated_evaluate_conformant(evaluator: ShExEvaluator) -> None:
+    """Issue #42: evaluate() should return consistent passing results across repeated calls."""
+    for _ in range(NUM_ITERS):
+        assert evaluator.evaluate()[0].result
+
+
+def test_repeated_evaluate_nonconformant(evaluator: ShExEvaluator, pl: PrefixLibrary) -> None:
+    """Issue #42: evaluate() should return consistent failing results across repeated calls."""
+    for _ in range(NUM_ITERS):
+        assert not evaluator.evaluate(focus=pl.EX.a)[0].result

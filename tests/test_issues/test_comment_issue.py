@@ -1,5 +1,3 @@
-import unittest
-
 from pyshexc.parser_impl.generate_shexj import parse
 
 shex_schema = """
@@ -28,12 +26,5 @@ gw:cancer {
 """
 
 
-class ShexCommentTestCase(unittest.TestCase):
-
-    def test_1(self):
-        parse(shex_schema)
-        self.assertTrue(True, "Parser didn't die")
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_parser_handles_comments():
+    parse(shex_schema)

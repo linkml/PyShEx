@@ -1,6 +1,6 @@
 import sys
 from argparse import ArgumentParser
-from typing import Optional, Union, List, NamedTuple, Type, Iterator, Callable
+from typing import NamedTuple, Type, Iterator, Callable
 
 from CFGraph import CFGraph
 from ShExJSG import ShExJ, ShExC
@@ -20,16 +20,16 @@ from pyshex.utils.sparql_query import SPARQLQuery
 
 class EvaluationResult(NamedTuple):
     result: bool
-    focus: Optional[URIRef]
-    start: Optional[URIRef]
-    reason: Optional[str]
+    focus: URIRef | None
+    start: URIRef | None
+    reason: str | None
 
 
 # Handy types
-URI = Union[str, URIRef]        # URI as an argument
-URILIST = Iterator[URI]             # List of URI's as an argument
-URIPARM = Union[URI, URILIST]       # Choice of URI or list
-STARTPARM = [Union[Type[START], START_TYPE, URILIST]]
+URI = str | URIRef        # URI as an argument
+URILIST = Iterator[URI]             # list of URI's as an argument
+URIPARM = URI | URILIST       # Choice of URI or list
+STARTPARM = [Type[START] | START_TYPE | URILIST]
 
 
 def normalize_uri(u: URI) -> URIRef:
@@ -37,18 +37,18 @@ def normalize_uri(u: URI) -> URIRef:
     return u if isinstance(u, URIRef) else URIRef(str(u))
 
 
-def normalize_urilist(ul: URILIST) -> List[URIRef]:
+def normalize_urilist(ul: URILIST) -> list[URIRef]:
     """ Return a list of URIRefs for ul """
     return [normalize_uri(u) for u in ul]
 
 
-def normalize_uriparm(p: URIPARM) -> List[URIRef]:
+def normalize_uriparm(p: URIPARM) -> list[URIRef]:
     """ Return an optional list of URIRefs for p"""
-    return normalize_urilist(p) if isinstance(p, List) else \
+    return normalize_urilist(p) if isinstance(p, list) else \
         normalize_urilist([p]) if isinstance(p, (str, URIRef)) else p
 
 
-def normalize_startparm(p: STARTPARM) -> List[Union[type(START), START_TYPE, URIRef]]:
+def normalize_startparm(p: STARTPARM) -> list[type(START) | START_TYPE | URIRef]:
     """ Return the startspec for p """
     if not isinstance(p, list):
         p = [p]
@@ -59,15 +59,15 @@ class ShExEvaluator:
     """ Shape Expressions Evaluator """
 
     def __init__(self,
-                 rdf: Optional[Union[str, Graph]] = None,
-                 schema: Optional[Union[str, ShExJ.Schema]] = None,
-                 focus: Optional[URIPARM] = None,
+                 rdf: str | Graph | None = None,
+                 schema: str | ShExJ.Schema | None = None,
+                 focus: URIPARM | None = None,
                  start: STARTPARM = None,
                  rdf_format: str = "turtle",
                  debug: bool = False,
                  debug_slurps: bool = False,
                  over_slurp: bool = None,
-                 output_sink: Optional[Callable[[EvaluationResult], bool]] = None) -> None:
+                 output_sink: Callable[[EvaluationResult], bool] | None = None) -> None:
         """ Evaluator constructor.  All of the parameters below can be set in the constructor or at runtime
 
         :param rdf: RDF string, file name, URL or Graph for evaluation.
@@ -106,7 +106,7 @@ class ShExEvaluator:
         return self.g.serialize(format=self.rdf_format).decode()
 
     @rdf.setter
-    def rdf(self, rdf: Optional[Union[str, Graph]]) -> None:
+    def rdf(self, rdf: str | Graph | None) -> None:
         """ Set the RDF DataSet to be evaulated.  If ``rdf`` is a string, the presence of a return is the
         indicator that it is text instead of a location.
 
@@ -125,7 +125,7 @@ class ShExEvaluator:
                     self.g.parse(source=rdf, format=self.rdf_format)
 
     @property
-    def schema(self) -> Optional[str]:
+    def schema(self) -> str | None:
         """
 
         :return: The ShExC representation of the schema if one is supplied
@@ -133,7 +133,7 @@ class ShExEvaluator:
         return str(ShExC(self._schema)) if self._schema else None
 
     @schema.setter
-    def schema(self, shex: Optional[Union[str, ShExJ.Schema]]) -> None:
+    def schema(self, shex: str | ShExJ.Schema | None) -> None:
         """ Set the schema to be used.  Schema can either be a ShExC or ShExJ string or a pre-parsed schema.
 
         :param shex:  Schema
@@ -154,14 +154,14 @@ class ShExEvaluator:
                 self.pfx = PrefixLibrary(loader.schema_text)
 
     @property
-    def focus(self) -> Optional[List[URIRef]]:
+    def focus(self) -> list[URIRef] | None:
         """
         :return: The list of focus nodes (if any)
         """
         return self._focus
 
     @property
-    def foci(self) -> List[URIRef]:
+    def foci(self) -> list[URIRef]:
         """
 
         :return: The current set of focus nodes
@@ -169,7 +169,7 @@ class ShExEvaluator:
         return self._focus if self._focus else sorted([s for s in set(self.g.subjects()) if isinstance(s, URIRef)])
 
     @focus.setter
-    def focus(self, focus: Optional[URIPARM]) -> None:
+    def focus(self, focus: URIPARM | None) -> None:
         """ Set the focus node(s).  If no focus node is specified, the evaluation will occur for all non-BNode
         graph subjects.  Otherwise it can be a string, a URIRef or a list of string/URIRef combinations
 
@@ -190,15 +190,15 @@ class ShExEvaluator:
         self._start = normalize_startparm(start) if start else [START]
 
     def evaluate(self,
-                 rdf: Optional[Union[str, Graph]] = None,
-                 shex: Optional[Union[str, ShExJ.Schema]] = None,
-                 focus: Optional[URIPARM] = None,
+                 rdf: str | Graph | None = None,
+                 shex: str | ShExJ.Schema | None = None,
+                 focus: URIPARM | None = None,
                  start: STARTPARM = None,
-                 rdf_format: Optional[str] = None,
-                 debug: Optional[bool] = None,
-                 debug_slurps: Optional[bool] = None,
-                 over_slurp: Optional[bool] = None,
-                 output_sink: Optional[Callable[[EvaluationResult], bool]] = None) -> List[EvaluationResult]:
+                 rdf_format: str | None = None,
+                 debug: bool | None = None,
+                 debug_slurps: bool | None = None,
+                 over_slurp: bool | None = None,
+                 output_sink: Callable[[EvaluationResult], bool] | None = None) -> list[EvaluationResult]:
         if rdf is not None or shex is not None or focus is not None or start is not None:
             evaluator = ShExEvaluator(rdf=rdf if rdf is not None else self.g,
                                       schema=shex if shex is not None else self._schema,
@@ -235,7 +235,7 @@ class ShExEvaluator:
 
         for focus in evaluator.foci:
             self.nnodes += 1
-            start_list: List[Union[URIRef, START]] = []
+            start_list: list[URIRef | START] = []
             for start in evaluator.start:
                 if start is START:
                     start_list.append(evaluator._schema.start)
@@ -263,7 +263,7 @@ class ShExEvaluator:
         return self.eval_result
 
 
-def genargs(prog: Optional[str] = None) -> ArgumentParser:
+def genargs(prog: str | None = None) -> ArgumentParser:
     """
     Create a command line parser
     :return: parser
@@ -294,7 +294,7 @@ def genargs(prog: Optional[str] = None) -> ArgumentParser:
     return parser
 
 
-def evaluate_cli(argv: Optional[Union[str, List[str]]] = None, prog: Optional[str] = None) -> int:
+def evaluate_cli(argv: str | list[str] | None = None, prog: str | None = None) -> int:
     if isinstance(argv, str):
         argv = argv.split()
     opts = genargs(prog).parse_args(argv if argv is not None else sys.argv[1:])

@@ -1,11 +1,11 @@
-import unittest
+from rdflib import Namespace
 
 from pyshex import ShExEvaluator
-from rdflib import Namespace
+
 
 BASE = Namespace("https://www.w3.org/2017/10/bibframe-shex/")
 
-shex = """
+SHEX = """
 BASE <https://www.w3.org/2017/10/bibframe-shex/> 
 PREFIX bf: <http://bibframe.org/vocab/>
 PREFIX madsrdf: <http://www.loc.gov/mads/rdf/v1#>
@@ -83,11 +83,9 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
   rdf:first @<MadsTopic> ;
   rdf:rest  [rdf:nil] OR @<TopicList>
 }
-
-
 """
 
-rdf = """
+RDF_DATA = """
 @base <https://www.w3.org/2017/10/bibframe-shex/> .
 PREFIX bf: <http://bibframe.org/vocab/>
 PREFIX madsrdf: <http://www.loc.gov/mads/rdf/v1#>
@@ -137,11 +135,6 @@ PREFIX locid: <http://id.loc.gov/vocabulary/identifiers/>
 """
 
 
-class BookSmallTextTestCase(unittest.TestCase):
-    def test_it(self):
-        results = ShExEvaluator().evaluate(rdf, shex, focus=BASE.samples9298996, start=BASE.Work)
-        self.assertTrue(all(r.result for r in results))
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_bibframe_work_conforms() -> None:
+    results = ShExEvaluator().evaluate(RDF_DATA, SHEX, focus=BASE.samples9298996, start=BASE.Work)
+    assert all(r.result for r in results)

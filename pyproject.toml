@@ -1,0 +1,99 @@
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[project]
+name = "PyShEx"
+description = "Python ShEx interpreter"
+authors = [
+    { name = "Harold Solbrig", email = "solbrig@jhu.edu" },
+    { name = "Wouter-Michiel Vierdag", email = "michiel.vierdag@scverse.org" }
+]
+license = { text = "CC0 1.0 Universal" }
+repository = "https://github.com/hsolbrig/PyShEx"
+readme = "README.md"
+keywords = [
+    "ShEx",
+    "rdf",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Software Development :: Compilers",
+    "License :: CC0 1.0 Universal (CC0 1.0) Public Domain Dedication",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+    "cfgraph>=0.2.1",
+    "chardet",
+    "pyshexc>=0.10.3",
+    "rdflib-shim",
+    "requests>=2.22.0",
+    "shexjsg>=0.9.0",
+    "sparqlslurper>=0.5.1",
+    "sparqlwrapper>=1.8.5",
+    "urllib3",
+]
+
+[project.scripts]
+shexeval = "pyshex.shex_evaluator:evaluate_cli"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+fallback-version = "0.0.0"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pyshex"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "coverage",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310", "py311", "py312", "py313",  "py314"]
+
+[tool.codespell]
+skip = [
+  ".git",
+  "uv.lock",
+  "*.toml",
+]
+
+[tool.tox]
+requires = ["tox>=4"]
+env_list = ["lint", "py{310,311,312,313}"]
+
+[tool.tox.env_run_base]
+allowlist_externals = ["uv"]
+deps = ["pytest"]
+commands = [
+  ["uv", "sync", "--all-extras", "--dev"],
+  ["uv", "run", "pytest", "{posargs}"],
+]
+
+[tool.tox.env.codespell]
+description = "Run spell checkers."
+skip_install = true
+deps = [
+  "codespell",
+  "tomli", # required for getting config from pyproject.toml
+]
+commands = [
+  ["codespell", "{posargs}"]
+]

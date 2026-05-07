@@ -1,14 +1,11 @@
-import unittest
-
-from rdflib import Graph, Namespace, XSD, Literal
+from rdflib import Namespace, XSD
 
 from pyshex import ShExEvaluator
 
 
 FHIR = Namespace("http://hl7.org/fhir/")
-EX = Namespace("http://example.org/")
 
-shex = f"""PREFIX : <{FHIR}> 
+SHEX = f"""PREFIX : <{FHIR}>
 PREFIX xsd: <{XSD}>
 
 start = @<A>
@@ -23,7 +20,7 @@ start = @<A>
 <C> {{ :subject @<A> ; :predc xsd:string }}
 """
 
-data = f"""PREFIX : <{FHIR}>
+RDF_DATA = f"""PREFIX : <{FHIR}>
 PREFIX xsd: <{XSD}>
 
 :d :predd "final" ; :test <a> ; :test2 <c> .
@@ -32,16 +29,8 @@ PREFIX xsd: <{XSD}>
 """
 
 
-class ShexjsIssue14TestCase(unittest.TestCase):
-    # Test of https://github.com/shexSpec/shex.js/issues/16
-
-    def test_infinite_loop(self):
-        e = ShExEvaluator(rdf=data, schema=shex, focus=FHIR.d, debug=False)
-        rslt = e.evaluate()
-        # self.assertEqual("http://a.example/S: Inconsistent recursive shape reference", rslt[0].reason)
-        self.assertFalse(rslt[0].result)
-        print(rslt[0].reason)
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_no_infinite_loop_on_recursive_shape() -> None:
+    """shex.js issue #16: evaluation should terminate on recursive/inconsistent shape references."""
+    rslt = ShExEvaluator(rdf=RDF_DATA, schema=SHEX, focus=FHIR.d, debug=False).evaluate()
+    print(rslt[0].reason)
+    assert not rslt[0].result

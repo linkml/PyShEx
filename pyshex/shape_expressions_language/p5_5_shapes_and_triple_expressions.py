@@ -1,7 +1,4 @@
 """ Implementation of `5.5 Shapes and Triple Expressions <http://shex.io/shex-semantics/#shapes-and-TEs>`_"""
-
-from typing import List, Optional, Union, Set
-
 from ShExJSG import ShExJ
 from pyjsg.jsglib import isinstance_
 from rdflib import URIRef
@@ -153,7 +150,7 @@ def valid_remainder(cntxt: Context, n: Node, matchables: RDFGraph, S: ShExJ.Shap
     return not S.closed.val or not bool(outs - matchables)
 
 
-def matches(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr, extras: Optional[Set[URIRef]] = None) -> bool:
+def matches(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr, extras: set[URIRef] | None = None) -> bool:
     """
     **matches**: asserts that a triple expression is matched by a set of triples that come from the neighbourhood of a
     node in an RDF graph. The expression `matches(T, expr, m)` indicates that a set of triples `T` can satisfy these
@@ -197,8 +194,8 @@ def matchesTripleExprLabel(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExprLa
 
 
 @trace_matches(False)
-def matchesCardinality(cntxt: Context, T: RDFGraph, expr: Union[ShExJ.tripleExpr, ShExJ.tripleExprLabel],
-                       c: DebugContext, extras: Optional[Set[URIRef]] = None) -> bool:
+def matchesCardinality(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr | ShExJ.tripleExprLabel,
+                       c: DebugContext, extras: set[URIRef] | None = None) -> bool:
     """ Evaluate cardinality expression
 
     expr has a cardinality of min and/or max not equal to 1, where a max of -1 is treated as unbounded, and
@@ -257,7 +254,7 @@ def _fail_triples(cntxt: Context, T: RDFGraph) -> None:
             cntxt.fail_reason = "      ...   "
 
 
-def _partitions(T: RDFGraph, min_: Optional[int], max_: Optional[int]) -> List[List[RDFGraph]]:
+def _partitions(T: RDFGraph, min_: int | None, max_: int | None) -> list[list[RDFGraph]]:
     if max_ == 1:
         yield [T]
     else:

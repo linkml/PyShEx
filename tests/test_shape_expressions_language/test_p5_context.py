@@ -1,7 +1,3 @@
-import unittest
-import json
-from typing import List
-
 from ShExJSG import ShExJ
 from ShExJSG.ShExJ import IRIREF
 from rdflib import URIRef, RDF
@@ -34,34 +30,29 @@ rdf_1 = gen_rdf(""" <Alice> ex:shoeSize "30"^^xsd:integer .
 <TheMoon> ex:madeOf <GreenCheese> .""")
 
 
-def predicate_finder(predicates: List[URIRef], tc: ShExJ.TripleConstraint, cntxt: Context) -> None:
+def predicate_finder(predicates: list[URIRef], tc: ShExJ.TripleConstraint, cntxt: Context) -> None:
     if isinstance(tc, ShExJ.TripleConstraint):
         predicates.append(URIRef(tc.predicate))
 
 
-def triple_expr_finder(predicates: List[URIRef], expr: ShExJ.shapeExpr, cntxt: Context) -> None:
+def triple_expr_finder(predicates: list[URIRef], expr: ShExJ.shapeExpr, cntxt: Context) -> None:
     if isinstance(expr, ShExJ.Shape) and expr.expression is not None:
         cntxt.visit_triple_expressions(expr.expression, predicate_finder, predicates)
 
 
-class ContextTestCase(unittest.TestCase):
-    def test_basic_context(self):
-        c = setup_context(shex_1, rdf_1)
-        self.assertEqual(['http://schema.example/UserShape'], list(c.schema_id_map.keys()))
-        self.assertTrue(isinstance(list(c.schema_id_map.values())[0], ShExJ.Shape))
-        self.assertEqual(['http://schema.example/te1'], list(c.te_id_map.keys()))
-        self.assertTrue(isinstance(list(c.te_id_map.values())[0], ShExJ.TripleConstraint))
-        
-    def test_predicate_scan(self):
-        c = setup_context(shex_1, rdf_1)
-        predicates: List[URIRef] = []
-        c.visit_shapes(c.shapeExprFor(IRIREF('http://schema.example/UserShape')), triple_expr_finder, predicates)
-        self.assertEqual([RDF.type], predicates)
-        # Quick test of the utility function
-        self.assertEqual(predicates_in_expression(c.shapeExprFor(IRIREF('http://schema.example/UserShape')), c),
-                         [ShExJ.IRIREF(str(u)) for u in predicates])
+def test_basic_context():
+    c = setup_context(shex_1, rdf_1)
+    assert list(c.schema_id_map.keys()) == ['http://schema.example/UserShape']
+    assert isinstance(list(c.schema_id_map.values())[0], ShExJ.Shape)
+    assert list(c.te_id_map.keys()) == ['http://schema.example/te1']
+    assert isinstance(list(c.te_id_map.values())[0], ShExJ.TripleConstraint)
 
 
-
-if __name__ == '__main__':
-    unittest.main()
+def test_predicate_scan():
+    c = setup_context(shex_1, rdf_1)
+    predicates: list[URIRef] = []
+    c.visit_shapes(c.shapeExprFor(IRIREF('http://schema.example/UserShape')), triple_expr_finder, predicates)
+    assert predicates == [RDF.type]
+    # Quick test of the utility function
+    assert predicates_in_expression(c.shapeExprFor(IRIREF('http://schema.example/UserShape')), c) == \
+           [ShExJ.IRIREF(str(u)) for u in predicates]

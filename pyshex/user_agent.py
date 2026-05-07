@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from SPARQLWrapper import SPARQLWrapper
 from sparqlslurper import SlurpyGraph, GraphDBSlurpyGraph
@@ -15,8 +14,8 @@ UserAgent = f"PyShEx/{description[1:description.find('-')]} " \
             f"(https://github.com/hsolbrig/PyShEx; solbrig@jhu.edu)"
 
 
-def SlurpyGraphWithAgent(endpoint: str, *args, persistent_bnodes: bool = False, agent: Optional[str] = None,
-                 gdb_slurper: Optional[bool] = False, **kwargs) -> SlurpyGraph:
+def SlurpyGraphWithAgent(endpoint: str, *args, persistent_bnodes: bool = False, agent: str | None = None,
+                 gdb_slurper: bool | None = False, **kwargs) -> SlurpyGraph:
     rval = GraphDBSlurpyGraph(endpoint, *args, persistent_bnodes=persistent_bnodes, **kwargs) if gdb_slurper else \
         SlurpyGraph(endpoint, *args, persistent_bnodes=persistent_bnodes, **kwargs)
     rval.sparql.agent = agent if agent else UserAgent

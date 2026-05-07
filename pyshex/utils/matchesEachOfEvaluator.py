@@ -1,5 +1,3 @@
-from typing import Dict, List, Tuple, Set
-
 from ShExJSG import ShExJ
 from ShExJSG.ShExJ import IRIREF
 
@@ -14,7 +12,7 @@ class EachOfEvaluator:
         """ Create an evaluator for expr and T
 
         :param cntxt: evaluation context
-        :param T: List of triples to evaluate
+        :param T: list of triples to evaluate
         :param expr: expression to evaluate against
         """
         # tripleExpr = Union["EachOf", "OneOf", "TripleConstraint", tripleExprLabel]
@@ -29,11 +27,11 @@ class EachOfEvaluator:
         #       Case 3: expression references two or more predicates and all referenced predicates occur only once
         #                   Evaluate with set of all predicates and return false if fail
         #       Case 4: predicate occurs in two or more expressions and at least one of the referenced expressions
-        self.expressions: List[ShExJ.tripleExpr] = []
+        self.expressions: list[ShExJ.tripleExpr] = []
 
-        self.predicate_to_expression_nums: Dict[IRIREF, List[int]] = {}
-        self.expression_num_predicates: List[Set[IRIREF]] = []
-        self.predicate_graph: Dict[IRIREF, RDFGraph] = {}
+        self.predicate_to_expression_nums: dict[IRIREF, list[int]] = {}
+        self.expression_num_predicates: list[set[IRIREF]] = []
+        self.predicate_graph: dict[IRIREF, RDFGraph] = {}
 
         for e in expr.expressions:
             expr_num = len(self.expressions)
@@ -94,9 +92,9 @@ class EachOfEvaluator:
 
     def _predicate_closure(self,
                            predicate: IRIREF,
-                           referenced_predicates: List[IRIREF] = None,
-                           referenced_expressions: List[int] = None) \
-            -> Tuple[List[IRIREF], List[int]]:
+                           referenced_predicates: list[IRIREF] = None,
+                           referenced_expressions: list[int] = None) \
+            -> tuple[list[IRIREF], list[int]]:
         if referenced_predicates is None:
             referenced_predicates = []
         if referenced_expressions is None:

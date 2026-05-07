@@ -1,10 +1,12 @@
-import unittest
-
 from rdflib import Namespace
 
 from pyshex import ShExEvaluator
 
-shex = """BASE   <http://purl.obolibrary.org/obo/go/shapes/>
+
+UNIPROT = Namespace("http://identifiers.org/uniprot/")
+BASE = Namespace("http://purl.obolibrary.org/obo/go/shapes/")
+
+SHEX = """BASE   <http://purl.obolibrary.org/obo/go/shapes/>
 PREFIX obo: <http://purl.obolibrary.org/obo/>
 PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -21,7 +23,7 @@ PREFIX GoBiologicalProcess: <http://purl.obolibrary.org/obo/GO_0008150>
 }
 """
 
-rdf = """
+RDF_DATA = """
 @prefix : <http://model.geneontology.org/gorule6/> .
 @prefix M: <http://purl.obolibrary.org/obo/GO_0097325> .
 @prefix bl: <https://w3id.org/biolink/vocab/> .
@@ -77,15 +79,12 @@ rdf = """
         owl:Thing .
 """
 
-UNIPROT = Namespace("http://identifiers.org/uniprot/")
-BASE = Namespace("http://purl.obolibrary.org/obo/go/shapes/")
 
-
-class Issue58TestCase(unittest.TestCase):
-    def test_simple_example(self):
-        e = ShExEvaluator(rdf=rdf, schema=shex, focus=UNIPROT.Q13253, start=BASE.BiologicalProcessClass).evaluate()
-        self.assertTrue(e[0].result)
-
-
-if __name__ == '__main__':
-    unittest.main()
+def test_biological_process_class_passes() -> None:
+    results = ShExEvaluator(
+        rdf=RDF_DATA,
+        schema=SHEX,
+        focus=UNIPROT.Q13253,
+        start=BASE.BiologicalProcessClass,
+    ).evaluate()
+    assert results[0].result

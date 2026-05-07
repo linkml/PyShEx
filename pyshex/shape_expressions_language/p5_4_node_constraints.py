@@ -1,7 +1,6 @@
 """ Implementation of `5.4 <http://shex.io/shex-semantics/#node-constraints>`_"""
 
 import numbers
-from typing import Union
 
 from ShExJSG import ShExJ
 from pyjsg.jsglib import isinstance_
@@ -310,7 +309,7 @@ def nodeInLanguageStem(_: Context, n: Node, s: ShExJ.LanguageStem) -> bool:
         (isinstance(n, Literal) and n.language is not None and str(n.language).startswith(str(s)))
 
 
-def nodeInBnodeStem(_cntxt: Context, _n: Node, _s: Union[str, ShExJ.Wildcard]) -> bool:
+def nodeInBnodeStem(_cntxt: Context, _n: Node, _s: str | ShExJ.Wildcard) -> bool:
     """ http://shex.io/shex-semantics/#values
 
         **nodeIn**: asserts that an RDF node n is equal to an RDF term s or is in a set defined by a

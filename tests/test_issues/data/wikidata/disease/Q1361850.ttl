@@ -1,0 +1,113 @@
+@prefix do: <http://purl.obolibrary.org/obo/DOID_> .
+@prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns2: <http://wikiba.se/ontology#> .
+@prefix p: <http://www.wikidata.org/prop/> .
+@prefix ps: <http://www.wikidata.org/prop/statement/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema1: <http://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix wd: <http://www.wikidata.org/entity/> .
+@prefix wdt: <http://www.wikidata.org/prop/direct/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
+        "Trompa de Eustaquio patulosa",
+        "béance tubaire",
+        "klaffende Tube",
+        "patulous eustachian tube",
+        "tuba aperta",
+        "tuba auditiva patulosa",
+        "tuba beante",
+        "ziejąca trąbka słuchowa",
+        "Τυμπανοπνευμονία",
+        "پٹولوئس اسٹیچین ٹیوب",
+        "耳咽管開放症",
+        "耳管開放症",
+        "이관개방증" ;
+    schema1:dateModified "2024-09-22T03:26:47+00:00"^^xsd:dateTime ;
+    schema1:description "Krankheit",
+        "condição em que a tuba auditiva fica anormalmente aberta, causando autofonia e desconforto auditivo",
+        "disfunzione della tromba di Eustachio, il condotto virtuale che collega l'orecchio medio alla faringe che rimane aperto",
+        "dysfunkcja trąbki Eustachiusza",
+        "enfermedad del oído",
+        "eustachian tube disorder",
+        "maladie rare où la trompe d'Eustache, au lieu de rester normalement fermée, s'ouvre involontairement par intermittence",
+        "хвороба" ;
+    schema1:version 2251395007 ;
+    ns2:identifiers 13 ;
+    ns2:sitelinks 12 ;
+    ns2:statements 27 ;
+    skos:altLabel "ETD",
+        "PET",
+        "Patulous eustachian tube (disorder)",
+        "Trompa de Eustaquio distendida",
+        "Trompa patulosa",
+        "erweiterte Tuba auditiva",
+        "eustachian tube dysfunction",
+        "offene Tube",
+        "open buis van Eustachius",
+        "patent Eustachian tube" ;
+    p:P10 <http://www.wikidata.org/entity/statement/Q1361850-5C4E7105-93E9-44F2-97D6-977C1ACA343B> ;
+    p:P1542 <http://www.wikidata.org/entity/statement/Q1361850-0DCF83EE-7872-4CE8-A5CE-D531E4455665> ;
+    p:P1692 <http://www.wikidata.org/entity/statement/Q1361850-F0DEF98A-C463-4E24-921C-2DB10BC3BF79> ;
+    p:P1995 <http://www.wikidata.org/entity/statement/Q1361850-3093C4FE-F4C7-469D-A1C5-691FF12948E6> ;
+    p:P2579 <http://www.wikidata.org/entity/statement/Q1361850-AC950BDB-F236-4807-9269-5DE59CBA7AA2> ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q1361850-B1FAC553-E95A-4DF1-AEF8-4C3371D0C84E> ;
+    p:P2888 <http://www.wikidata.org/entity/statement/Q1361850-81C8C052-59CD-478D-B9B0-5714B9A3DF11>,
+        <http://www.wikidata.org/entity/statement/Q1361850-E60EA1BE-19B7-4839-98B5-B5C61854858C> ;
+    p:P2892 <http://www.wikidata.org/entity/statement/Q1361850-807E0B62-CB77-41E1-8F1E-E0D694BAA18D> ;
+    p:P31 <http://www.wikidata.org/entity/statement/Q1361850-8a2a0770-43b3-60c2-fa62-a731cfe4cd88>,
+        <http://www.wikidata.org/entity/statement/Q1361850-B44CCCFB-76C1-4C5B-B5FE-533CF3C83634>,
+        <http://www.wikidata.org/entity/statement/Q1361850-B7AA7A69-4C5A-4C96-9BD0-1E6AE4661814> ;
+    p:P3984 <http://www.wikidata.org/entity/statement/Q1361850-5e6b8c05-4636-2f7c-abfe-b313bf9ba06c> ;
+    p:P4229 <http://www.wikidata.org/entity/statement/Q1361850-985FB621-B7AE-4FF4-A789-58DF0286AF10>,
+        <http://www.wikidata.org/entity/statement/Q1361850-C1300AFA-CEEB-4FAF-B2F6-AB4987601707> ;
+    p:P4233 <http://www.wikidata.org/entity/statement/Q1361850-51c2daae-4617-2f85-ad69-285abb1e7205> ;
+    p:P4317 <http://www.wikidata.org/entity/statement/Q1361850-E96D1638-6C67-4CEB-A962-0A2E5377A6D7> ;
+    p:P5008 <http://www.wikidata.org/entity/statement/Q1361850-2BDB8173-2D4F-4151-82D0-A9C48EB1CD19>,
+        <http://www.wikidata.org/entity/statement/Q1361850-65A74034-89ED-4E79-8E05-E2CAEE69F977> ;
+    p:P5270 <http://www.wikidata.org/entity/statement/Q1361850-C1C32E1D-592D-4B67-A8E4-80CA9F50ABFF> ;
+    p:P6366 <http://www.wikidata.org/entity/statement/Q1361850-1224E400-13C6-46FB-BC04-106BCC4D6062> ;
+    p:P646 <http://www.wikidata.org/entity/statement/Q1361850-7CFDC0A7-0389-4E82-B5E5-1B2750A1EECF> ;
+    p:P673 <http://www.wikidata.org/entity/statement/q1361850-5F747A20-C50B-4292-9872-608998F7CBCD> ;
+    p:P699 <http://www.wikidata.org/entity/statement/Q1361850-9BDC5424-3426-42DD-9FC9-ABF252BEF813> ;
+    p:P7329 <http://www.wikidata.org/entity/statement/Q1361850-DBE1B607-0493-433D-A68B-1687B922E327> ;
+    p:P7807 <http://www.wikidata.org/entity/statement/Q1361850-08D29078-2081-47F4-B7D4-A2ACD2F22ED7> ;
+    p:P927 <http://www.wikidata.org/entity/statement/Q1361850-E1DDC5AB-52CD-444A-9740-0755DDE3C20E> ;
+    ns1:P5270 <http://purl.obolibrary.org/obo/MONDO_0001508> ;
+    ns1:P6366 <https://makg.org/entity/2778954745> ;
+    ns1:P699 <http://purl.obolibrary.org/obo/DOID_DOID:12358> ;
+    wdt:P10 <http://commons.wikimedia.org/wiki/Special:FilePath/Eustachian%20Tube%20Disfunction.webm> ;
+    wdt:P1542 wd:Q1581308 ;
+    wdt:P1692 "381.7" ;
+    wdt:P1995 wd:Q189553 ;
+    wdt:P2579 wd:Q569965 ;
+    wdt:P279 wd:Q18558207 ;
+    wdt:P2888 <http://identifiers.org/doid/DOID:12358>,
+        do:12358 ;
+    wdt:P2892 "C0155434" ;
+    wdt:P31 wd:Q112193867,
+        wd:Q1644260,
+        wd:Q7189713 ;
+    wdt:P3984 "PatulousTubes" ;
+    wdt:P4229 "H69.0",
+        "H69.00" ;
+    wdt:P4233 "patulous-eustachian-tube" ;
+    wdt:P4317 "10812" ;
+    wdt:P5008 wd:Q123226125,
+        wd:Q4099686 ;
+    wdt:P5270 "MONDO_0001508" ;
+    wdt:P6366 "2778954745" ;
+    wdt:P646 "/m/06811p" ;
+    wdt:P673 "874348" ;
+    wdt:P699 "DOID:12358" ;
+    wdt:P7329 "AB10.1" ;
+    wdt:P7807 "1112306780" ;
+    wdt:P927 wd:Q320561 .
+
+<http://www.wikidata.org/entity/statement/Q1361850-8a2a0770-43b3-60c2-fa62-a731cfe4cd88> ps:P31 wd:Q7189713 .
+
+<http://www.wikidata.org/entity/statement/Q1361850-B44CCCFB-76C1-4C5B-B5FE-533CF3C83634> ps:P31 wd:Q112193867 .
+
+<http://www.wikidata.org/entity/statement/Q1361850-B7AA7A69-4C5A-4C96-9BD0-1E6AE4661814> ps:P31 wd:Q1644260 .
+

@@ -1,5 +1,4 @@
 import re
-from typing import Optional, Tuple, Union
 
 import jsonasobj
 from ShExJSG import ShExJ
@@ -19,7 +18,7 @@ def can_cast_to(v: Literal, dt: str) -> bool:
     return v.value is not None and Literal(str(v), datatype=dt).value is not None
 
 
-def total_digits(n: Literal) -> Optional[int]:
+def total_digits(n: Literal) -> int | None:
     """ 5.4.5 XML Schema Numberic Facet Constraints
 
      totaldigits and fractiondigits constraints on values not derived from xsd:decimal fail.
@@ -27,7 +26,7 @@ def total_digits(n: Literal) -> Optional[int]:
     return len(str(abs(int(n.value)))) + fraction_digits(n) if is_numeric(n) and n.value is not None else None
 
 
-def fraction_digits(n: Literal) -> Optional[int]:
+def fraction_digits(n: Literal) -> int | None:
     """ 5.4.5 XML Schema Numeric Facet Constraints
 
     for "fractiondigits" constraints, v is less than or equals the number of digits to the right of the decimal place
@@ -58,7 +57,7 @@ def _subf(matchobj) -> str:
         else o[1]
 
 
-def _map_xpath_flags_to_re(expr: str, xpath_flags: str) -> Tuple[int, str]:
+def _map_xpath_flags_to_re(expr: str, xpath_flags: str) -> tuple[int, str]:
     """ Map `5.6.2 Flags <https://www.w3.org/TR/xpath-functions-31/#flags>`_  to python
 
     :param expr: match pattern
@@ -92,7 +91,7 @@ def _char_class_escape(m) -> str:
     return match_str if match_str[0] == '[' and match_str[-1] == ']' else ''
 
 
-def map_object_literal(v: Union[str, jsonasobj.JsonObj]) -> ShExJ.ObjectLiteral:
+def map_object_literal(v: str | jsonasobj.JsonObj) -> ShExJ.ObjectLiteral:
     """ `PyShEx.jsg <https://github.com/hsolbrig/ShExJSG/ShExJSG/ShExJ.jsg>`_ does not add identifying
     types to ObjectLiterals.  This routine re-identifies the types
     """

@@ -1,7 +1,4 @@
 """ Implementation of `5.2 Validation Definition <http://shex.io/shex-semantics/#validation>`_ """
-from typing import Tuple, List
-
-from ShExJSG.ShExJ import BNODE
 from pyjsg.jsglib import isinstance_
 
 from pyshex.parse_tree.parse_node import ParseNode
@@ -11,7 +8,7 @@ from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import N
 from pyshex.shapemap_structure_and_language.p3_shapemap_structure import FixedShapeMap, START, nodeSelector
 
 
-def isValid(cntxt: Context, m: FixedShapeMap) -> Tuple[bool, List[str]]:
+def isValid(cntxt: Context, m: FixedShapeMap) -> tuple[bool, list[str]]:
     """`5.2 Validation Definition <http://shex.io/shex-semantics/#validation>`_
 
     The expression isValid(G, m) indicates that for every nodeSelector/shapeLabel pair (n, s) in m, s has a
