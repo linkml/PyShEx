@@ -1,4 +1,4 @@
-from typing import Callable, Optional, List, Union, Tuple
+from typing import Callable
 
 from pyjsg.jsglib import JSGObject
 from pyjsg.jsglib import isinstance_
@@ -6,26 +6,25 @@ from rdflib import BNode, URIRef, Graph
 
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import RDFGraph, Node
 from pyshex.utils.collection_utils import format_collection
-from pyshex.utils.n3_mapper import N3Mapper
 
 
 class ParseNode:
     def __init__(self,
-                 function: Callable[["Context", Union[RDFGraph, Node], JSGObject], bool],
+                 function: Callable[["Context", RDFGraph | Node, JSGObject], bool],
                  expr: JSGObject,
-                 obj: Union[RDFGraph, Node],
+                 obj: RDFGraph | Node,
                  cntxt: "Context"):
         self.function = function
         self.expr = expr
         self.graph = obj if isinstance(obj, RDFGraph) else None
         self.node = obj if isinstance_(obj, Node) else None
         self.result: bool = None
-        self._fail_reason: Optional[str] = None
-        self.reason_stack: List[Tuple[Union[BNode, URIRef], Optional[str]]] = []
-        self.nodes: List[ParseNode] = []
+        self._fail_reason: str | None = None
+        self.reason_stack: list[tuple[BNode | URIRef, str | None]] = []
+        self.nodes: list[ParseNode] = []
         self.n3m = cntxt.n3_mapper
 
-    def dump_bnodes(self, g: Graph, node: BNode, indent: str, top: bool = True) -> List[str]:
+    def dump_bnodes(self, g: Graph, node: BNode, indent: str, top: bool = True) -> list[str]:
         indent = indent + "  "
         collection = format_collection(g, node, 6)
         if collection is not None:
@@ -40,8 +39,8 @@ class ParseNode:
                 rval += self.dump_bnodes(g, o, indent, top=False)
         return rval
 
-    def fail_reasons(self, g: Graph, depth: int = 0) -> List[str]:
-        def follow_reasons(d: int) -> List[str]:
+    def fail_reasons(self, g: Graph, depth: int = 0) -> list[str]:
+        def follow_reasons(d: int) -> list[str]:
             fr = []
             if self._fail_reason:
                 fr.append(d * "  " + f"  {self._fail_reason}")

@@ -1,5 +1,3 @@
-from typing import Optional, Union, List, Dict, Set
-
 from ShExJSG import ShExJ
 from ShExJSG.ShExJ import IRIREF
 
@@ -7,7 +5,7 @@ from pyshex.shape_expressions_language.p5_context import Context
 from pyshex.shapemap_structure_and_language.p3_shapemap_structure import START, shapeLabel
 
 
-def reference_of(selector: shapeLabel, cntxt: Union[Context, ShExJ.Schema] ) -> Optional[ShExJ.shapeExpr]:
+def reference_of(selector: shapeLabel, cntxt: Context | ShExJ.Schema ) -> ShExJ.shapeExpr | None:
     """ Return the shape expression in the schema referenced by selector, if any
 
     :param cntxt: Context node or ShEx Schema
@@ -23,9 +21,9 @@ def reference_of(selector: shapeLabel, cntxt: Union[Context, ShExJ.Schema] ) -> 
     return schema.start if schema.start is not None and schema.start.id == selector else None
 
 
-def triple_reference_of(label: ShExJ.tripleExprLabel, cntxt: Context) -> Optional[ShExJ.tripleExpr]:
+def triple_reference_of(label: ShExJ.tripleExprLabel, cntxt: Context) -> ShExJ.tripleExpr | None:
     """ Search for the label in a Schema """
-    te: Optional[ShExJ.tripleExpr] = None
+    te: ShExJ.tripleExpr | None = None
     if cntxt.schema.start is not None:
         te = triple_in_shape(cntxt.schema.start, label, cntxt)
     if te is None:
@@ -37,7 +35,7 @@ def triple_reference_of(label: ShExJ.tripleExprLabel, cntxt: Context) -> Optiona
 
 
 def triple_in_shape(expr: ShExJ.shapeExpr, label: ShExJ.tripleExprLabel, cntxt: Context) \
-        -> Optional[ShExJ.tripleExpr]:
+        -> ShExJ.tripleExpr | None:
     """ Search for the label in a shape expression """
     te = None
     if isinstance(expr, (ShExJ.ShapeOr, ShExJ.ShapeAnd)):
@@ -54,10 +52,10 @@ def triple_in_shape(expr: ShExJ.shapeExpr, label: ShExJ.tripleExprLabel, cntxt: 
     return te
 
 
-def triple_constraints_in_expression(expression: ShExJ.shapeExpr, cntxt: Context) -> List[ShExJ.TripleConstraint]:
-    tes: List[ShExJ.TripleConstraint] = []
+def triple_constraints_in_expression(expression: ShExJ.shapeExpr, cntxt: Context) -> list[ShExJ.TripleConstraint]:
+    tes: list[ShExJ.TripleConstraint] = []
 
-    def triple_expr_visitor(tes: List[ShExJ.TripleConstraint], expr: ShExJ.TripleConstraint, _: Context) -> None:
+    def triple_expr_visitor(tes: list[ShExJ.TripleConstraint], expr: ShExJ.TripleConstraint, _: Context) -> None:
         if isinstance(expr, ShExJ.TripleConstraint):
             tes.append(expr)
 
@@ -65,14 +63,14 @@ def triple_constraints_in_expression(expression: ShExJ.shapeExpr, cntxt: Context
     return tes
 
 
-def predicates_in_expression(expression: ShExJ.shapeExpr, cntxt: Context) -> List[IRIREF]:
+def predicates_in_expression(expression: ShExJ.shapeExpr, cntxt: Context) -> list[IRIREF]:
     """ Return the set of predicates that "appears in a TripleConstraint in an expression
     
     See: `5.5.2 Semantics <http://shex.io/shex-semantics/#triple-expressions-semantics>`_ for details
 
     :param expression: Expression to scan for predicates
     :param cntxt: Context of evaluation
-    :return: List of predicates
+    :return: list of predicates
     """
     return list(directed_predicates_in_expression(expression, cntxt).keys())
 
@@ -89,7 +87,7 @@ class PredDirection:
             self.is_rev = True
 
 
-def directed_predicates_in_expression(expression: ShExJ.shapeExpr, cntxt: Context) -> Dict[IRIREF, PredDirection]:
+def directed_predicates_in_expression(expression: ShExJ.shapeExpr, cntxt: Context) -> dict[IRIREF, PredDirection]:
     """ Directed predicates in expression -- return all predicates in shapeExpr along with which direction(s) they
     evaluate
 
@@ -97,13 +95,13 @@ def directed_predicates_in_expression(expression: ShExJ.shapeExpr, cntxt: Contex
     :param cntxt:
     :return:
     """
-    dir_predicates: Dict[IRIREF, PredDirection] = {}
+    dir_predicates: dict[IRIREF, PredDirection] = {}
 
-    def predicate_finder(predicates: Dict[IRIREF, PredDirection], tc: ShExJ.TripleConstraint, _: Context) -> None:
+    def predicate_finder(predicates: dict[IRIREF, PredDirection], tc: ShExJ.TripleConstraint, _: Context) -> None:
         if isinstance(tc, ShExJ.TripleConstraint):
             predicates.setdefault(tc.predicate, PredDirection()).dir(tc.inverse is None or not tc.inverse)
 
-    def triple_expr_finder(predicates: Dict[IRIREF, PredDirection], expr: ShExJ.shapeExpr, cntxt_: Context) -> None:
+    def triple_expr_finder(predicates: dict[IRIREF, PredDirection], expr: ShExJ.shapeExpr, cntxt_: Context) -> None:
         if isinstance(expr, ShExJ.Shape) and expr.expression is not None:
             cntxt_.visit_triple_expressions(expr.expression, predicate_finder, predicates)
 
@@ -112,10 +110,10 @@ def directed_predicates_in_expression(expression: ShExJ.shapeExpr, cntxt: Contex
     return dir_predicates
 
 
-def predicates_in_tripleexpr(expression: ShExJ.tripleExpr, cntxt: Context) -> Set[IRIREF]:
-    predicates: Set[IRIREF] = set()
+def predicates_in_tripleexpr(expression: ShExJ.tripleExpr, cntxt: Context) -> set[IRIREF]:
+    predicates: set[IRIREF] = set()
 
-    def triple_expr_visitor(predicates: Set[IRIREF], expr: ShExJ.tripleExpr, cntxt_: Context) -> None:
+    def triple_expr_visitor(predicates: set[IRIREF], expr: ShExJ.tripleExpr, cntxt_: Context) -> None:
         if isinstance(expr, ShExJ.TripleConstraint):
             predicates.add(expr.predicate)
 

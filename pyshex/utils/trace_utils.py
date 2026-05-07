@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Set
+from typing import Callable
 
 from pyjsg.jsglib import JSGObject
 from rdflib import URIRef
@@ -32,8 +32,8 @@ def trace_satisfies(newline: bool=True, skip_trace: Callable[[JSGObject], bool]=
 
 
 def trace_matches(newline: bool=True):
-    def e(f: Callable[[Context, RDFGraph, JSGObject, DebugContext, Optional[Set[URIRef]]], bool]):
-        def wrapper(cntxt: Context, T: RDFGraph, expr: JSGObject, extras: Optional[Set[URIRef]]=None) -> bool:
+    def e(f: Callable[[Context, RDFGraph, JSGObject, DebugContext, set[URIRef] | None], bool]):
+        def wrapper(cntxt: Context, T: RDFGraph, expr: JSGObject, extras: set[URIRef] | None = None) -> bool:
             parent_parse_node = cntxt.current_node
             cntxt.current_node = ParseNode(f, expr, T, cntxt)
             parent_parse_node.nodes.append(cntxt.current_node)

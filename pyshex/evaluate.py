@@ -1,5 +1,3 @@
-from typing import Optional, Union, Tuple
-
 from ShExJSG import ShExJ
 from ShExJSG.ShExJ import IRIREF
 from rdflib import Graph, URIRef
@@ -12,10 +10,10 @@ from pyshex.utils.schema_loader import SchemaLoader
 
 
 def evaluate(g: Graph,
-             schema: Union[str, ShExJ.Schema],
-             focus: Optional[Union[str, URIRef, IRIREF]],
-             start: Optional[Union[str, URIRef, IRIREF, START, START_TYPE]]=None,
-             debug_trace: bool = False) -> Tuple[bool, Optional[str]]:
+             schema: str | ShExJ.Schema,
+             focus: str | URIRef | IRIREF | None,
+             start: str | URIRef | IRIREF | START | START_TYPE | None = None,
+             debug_trace: bool = False) -> tuple[bool, str | None]:
     """ Evaluate focus node `focus` in graph `g` against shape `shape` in ShEx schema `schema`
 
     :param g: Graph containing RDF

@@ -1,4 +1,4 @@
-from typing import Union, NamedTuple, Any, Optional, Set
+from typing import NamedTuple, Any
 
 import jsonasobj
 from jsonasobj import JsonObj
@@ -37,9 +37,9 @@ class QueryVariable:
 # A triple pattern is member of the set:
 # (RDF-T ∪ V) x (I ∪ V) x (RDF-T ∪ V)
 class SparqlTriplePattern(NamedTuple):
-    subject: Union[RDF_Term, QueryVariable]
-    predicate: Union[URIRef, QueryVariable]
-    object: Union[RDF_Term, QueryVariable]
+    subject: RDF_Term | QueryVariable
+    predicate: URIRef | QueryVariable
+    object: RDF_Term | QueryVariable
 
 
 class FOCUS(StringToken):
@@ -61,16 +61,16 @@ class WILD_CARD(StringToken):
 class SubjectFocusPattern(StringToken):
     subject: FOCUS
     predicate: URIRef
-    object: Union[URIRef, Literal, WILD_CARD]
+    object: URIRef | Literal | WILD_CARD
 
 
 class ObjectFocusPattern(StringToken):
-    subject: Union[URIRef, WILD_CARD]
+    subject: URIRef | WILD_CARD
     predicate: URIRef
     object: FOCUS
 
 
-TriplePattern = Union[SubjectFocusPattern, ObjectFocusPattern]
+TriplePattern = SubjectFocusPattern | ObjectFocusPattern
 
 
 class START(StringToken):
@@ -101,11 +101,11 @@ class nonconformant(StringToken):
 #  * reason: [optional] a string stating the reason for failure or success
 #  * appInfo: [optional] an application-spscific JSON-LD structure
 
-nodeSelector = Union[Node, TriplePattern]
-shapeLabel = Union[ShExJ.shapeExprLabel, START]
-status = Optional[Union[conformant, nonconformant]]
-reason = Optional[str]
-appinfo = Optional[jsonasobj.JsonObj]
+nodeSelector = Node | TriplePattern
+shapeLabel = ShExJ.shapeExprLabel | START
+status = conformant | nonconformant | None
+reason = str | None
+appinfo = jsonasobj.JsonObj | None
 
 
 # In this document, these members can be addressed with a '.' operator. For instance, a shape association A
@@ -114,7 +114,7 @@ appinfo = Optional[jsonasobj.JsonObj]
 # If the status member is absent, the status is assumed to be "conformant". The reason and appInfo members may
 # also be absent but have no default value.
 class ShapeAssociation(JsonObj):
-    def __init__(self, nodeSelector: Union[nodeSelector, str], shapeLabel: shapeLabel,
+    def __init__(self, nodeSelector: nodeSelector | str, shapeLabel: shapeLabel,
                  status: status=None, reason: reason=None,
                  appinfo: appinfo=None) -> None:
         if not isinstance(nodeSelector, (Literal, URIRef)):
@@ -136,7 +136,7 @@ class ShapeAssociation(JsonObj):
 # No two shape associations in a ShapeMap may have the same combination of nodeSelector and shapeLabel.
 # NOTE: This means that, in fact, a ShapeMap is a mapping (dictionary) between a nodeSelector/shapeLabel tuple and
 #       a status/reason/appinfo tuple
-ShapeMapType = Set[ShapeAssociation]
+ShapeMapType = set[ShapeAssociation]
 
 
 class ShapeMap(set):

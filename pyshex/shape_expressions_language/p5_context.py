@@ -7,7 +7,7 @@ We might fold the various routines inside context and replace "cntxt: Context" w
 """
 from collections import defaultdict
 from copy import copy
-from typing import Dict, Any, Callable, Optional, List, Tuple, Union, Set
+from typing import Any, Callable
 
 from ShExJSG import ShExJ
 from ShExJSG.ShExJ import Schema
@@ -26,7 +26,7 @@ class DebugContext:
         self.debug = False
         self.trace_slurps = False
         self.trace_depth = 0
-        self.held_prints: Dict[int, str] = defaultdict(str)
+        self.held_prints: dict[int, str] = defaultdict(str)
         self.max_print_depth: int = 0
 
     def d(self) -> str:
@@ -47,7 +47,7 @@ class DebugContext:
     def rs(ndeep) -> str:
         return '\n' + DebugContext.s(ndeep)
 
-    def i(self, bias: int, txt: str, txt_list: Optional[List[object]]=None) -> str:
+    def i(self, bias: int, txt: str, txt_list: list[object] | None = None) -> str:
         if txt_list is None:
             txt_list = []
         elif len(txt_list) > 1:
@@ -114,22 +114,22 @@ class _VisitorCenter:
         return id_ in self._seen_tes
 
 
-def default_external_shape_resolver(_: ShExJ.IRIREF) -> Optional[ShExJ.Shape]:
+def default_external_shape_resolver(_: ShExJ.IRIREF) -> ShExJ.Shape | None:
     """ Default external shape resolution function """
     return None
 
 
-def default_shape_importer(_: ShExJ.IRIREF, cntxt: "Context") -> Optional[ShExJ.Schema]:
+def default_shape_importer(_: ShExJ.IRIREF, cntxt: "Context") -> ShExJ.Schema | None:
     """ Resolve an import declaration """
     return None
 
 
 class Context:
     """ Environment for ShExJ evaluation """
-    def __init__(self, g: Optional[Graph], s: Schema,
-                 external_shape_resolver: Optional[Callable[[ShExJ.IRIREF], Optional[ShExJ.Shape]]]=None,
-                 base_namespace: Optional[Namespace]=None,
-                 shape_importer: Optional[Callable[[ShExJ.IRIREF], Optional[ShExJ.Schema]]]=None) -> None:
+    def __init__(self, g: Graph | None, s: Schema,
+                 external_shape_resolver: Callable[[ShExJ.IRIREF], ShExJ.Shape | None] | None = None,
+                 base_namespace: Namespace | None = None,
+                 shape_importer: Callable[[ShExJ.IRIREF], ShExJ.Schema | None] | None = None) -> None:
         """
         Create a context consisting of an RDF Graph and a ShEx Schema and generate a identifier to
         item map.
@@ -140,12 +140,12 @@ class Context:
         :param base_namespace:
         """
         self.is_valid: bool = True
-        self.error_list: List[str] = []
+        self.error_list: list[str] = []
         self.graph: Graph = g
         self.n3_mapper = N3Mapper(g)
         self.schema: ShExJ.Schema = s
-        self.schema_id_map: Dict[ShExJ.shapeExprLabel, ShExJ.shapeExpr] = {}
-        self.te_id_map: Dict[ShExJ.tripleExprLabel, ShExJ.tripleExpr] = {}
+        self.schema_id_map: dict[ShExJ.shapeExprLabel, ShExJ.shapeExpr] = {}
+        self.te_id_map: dict[ShExJ.tripleExprLabel, ShExJ.tripleExpr] = {}
         self.external_shape_for = external_shape_resolver if external_shape_resolver \
             else default_external_shape_resolver
         self.base_namespace = base_namespace if isinstance(base_namespace, Namespace) \
@@ -159,11 +159,11 @@ class Context:
         # A list of node selectors/shape expressions that are being evaluated.  If we attempt to evaluate
         # an entry for a second time, we, instead, put the entry into the assumptions table.  We start with 'true'
         # and, if the result is 'true' then we count it as success.  If not, we switch to false and try again
-        self.evaluating: Set[Tuple[Node, ShExJ.shapeExprLabel]] = set()
-        self.assumptions: Dict[Tuple[Node, ShExJ.shapeExprLabel], bool] = {}
+        self.evaluating: set[tuple[Node, ShExJ.shapeExprLabel]] = set()
+        self.assumptions: dict[tuple[Node, ShExJ.shapeExprLabel], bool] = {}
 
         # Known results -- a cache of existing evaluation results
-        self.known_results: Dict[Tuple[Node, ShExJ.shapeExprLabel], bool] = {}
+        self.known_results: dict[tuple[Node, ShExJ.shapeExprLabel], bool] = {}
 
         # Debugging options
         self.debug_context = DebugContext()
@@ -194,8 +194,8 @@ class Context:
                 self._gen_schema_xref(e)
 
         self.current_node: ParseNode = None
-        self.evaluate_stack: List[Tuple[Union[BNode, URIRef], Optional[str]]] = []  # Node / shape evaluation stacks
-        self.bnode_map: Dict[BNode, str] = {}       # Map for prettifying bnodes
+        self.evaluate_stack: list[tuple[BNode | URIRef, str | None]] = []  # Node / shape evaluation stacks
+        self.bnode_map: dict[BNode, str] = {}       # Map for prettifying bnodes
 
     def reset(self) -> None:
         """
@@ -208,7 +208,7 @@ class Context:
         self.evaluate_stack = []
         self.bnode_map = {}
 
-    def _gen_schema_xref(self, expr: Optional[Union[ShExJ.shapeExprLabel, ShExJ.shapeExpr]]) -> None:
+    def _gen_schema_xref(self, expr: ShExJ.shapeExprLabel | ShExJ.shapeExpr | None) -> None:
         """
         Generate the schema_id_map
 
@@ -227,10 +227,10 @@ class Context:
             if expr.expression is not None:
                 self._gen_te_xref(expr.expression)
 
-    def _resolve_relative_uri(self, ref: Union[URIRef, BNode, ShExJ.shapeExprLabel]) -> ShExJ.shapeExprLabel:
+    def _resolve_relative_uri(self, ref: URIRef | BNode | ShExJ.shapeExprLabel) -> ShExJ.shapeExprLabel:
         return ShExJ.IRIREF(str(self.base_namespace[str(ref)])) if ':' not in str(ref) and self.base_namespace else ref
 
-    def _gen_te_xref(self, expr: Union[ShExJ.tripleExpr, ShExJ.tripleExprLabel]) -> None:
+    def _gen_te_xref(self, expr: ShExJ.tripleExpr | ShExJ.tripleExprLabel) -> None:
         """
         Generate the triple expression map (te_id_map)
 
@@ -253,7 +253,7 @@ class Context:
         """ Return the triple expression that corresponds to id """
         return self.te_id_map.get(id_)
 
-    def shapeExprFor(self, id_: Union[ShExJ.shapeExprLabel, START]) -> Optional[ShExJ.shapeExpr]:
+    def shapeExprFor(self, id_: ShExJ.shapeExprLabel | START) -> ShExJ.shapeExpr | None:
         """ Return the shape expression that corresponds to id """
         rval = self.schema.start if id_ is START else self.schema_id_map.get(str(id_))
         return rval
@@ -353,7 +353,7 @@ class Context:
         if isinstance(shape, ShExJ.Shape) and shape.expression is not None:
             visit_center.f(visit_center.arg_cntxt, shape.expression, self)
 
-    def start_evaluating(self, n: Node, s: ShExJ.shapeExpr) -> Optional[bool]:
+    def start_evaluating(self, n: Node, s: ShExJ.shapeExpr) -> bool | None:
         """Indicate that we are beginning to evaluate n according to shape expression s.
         If we are already in the process of evaluating (n,s), as indicated self.evaluating, we return our current
         guess as to the result.
@@ -377,7 +377,7 @@ class Context:
             self.assumptions[key] = True
         return self.assumptions[key]
 
-    def done_evaluating(self, n: Node, s: ShExJ.shapeExpr, result: bool) -> Tuple[bool, bool]:
+    def done_evaluating(self, n: Node, s: ShExJ.shapeExpr, result: bool) -> tuple[bool, bool]:
         """
         Indicate that we have completed an actual evaluation of (n,s).  This is only called when start_evaluating
         has returned None as the assumed result
@@ -385,7 +385,7 @@ class Context:
         :param n: Node that was evaluated
         :param s: expression for node evaluation
         :param result: result of evaluation
-        :return: Tuple - first element is whether we are done, second is whether evaluation was consistent
+        :return: tuple - first element is whether we are done, second is whether evaluation was consistent
         """
         key = (n, s.id)
 
@@ -405,7 +405,7 @@ class Context:
             self.fail_reason = f"{s.id}: Inconsistent recursive shape reference"
             return True, False
 
-    def process_reasons(self) -> List[str]:
+    def process_reasons(self) -> list[str]:
         return self.current_node.fail_reasons(self.graph)
 
 
@@ -421,7 +421,7 @@ class Context:
             self.current_node._fail_reason += '\n' + reason_text
         self.current_node.reason_stack = copy(self.evaluate_stack)
 
-    def dump_bnode(self, n: Union[URIRef, BNode, Literal]) -> None:
+    def dump_bnode(self, n: URIRef | BNode | Literal) -> None:
         if isinstance(n, BNode):
             self.fail_reason = f"    {self.n3_mapper.n3(n)} context:"
             for entry in self.current_node.dump_bnodes(self.graph, n, '      '):
@@ -429,7 +429,7 @@ class Context:
 
     def type_last(self, obj: JsonObj) -> JsonObj:
         """ Move the type identifiers to the end of the object for print purposes """
-        def _tl_list(v: List) -> List:
+        def _tl_list(v: list) -> list:
             return [self.type_last(e) if isinstance(e, JsonObj)
                                    else _tl_list(e) if isinstance(e, list) else e for e in v if e is not None]
 

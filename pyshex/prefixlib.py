@@ -1,5 +1,4 @@
 import re
-from typing import Union, Optional
 
 from pyshexc.parser_impl.generate_shexj import load_shex_file
 from rdflib import Namespace, Graph, RDF, RDFS, XSD, URIRef, __version__
@@ -18,7 +17,7 @@ from pyshex.utils.deprecated import deprecated
 class PrefixLibrary:
     unique_token = object()
 
-    def __init__(self, schema: Optional[str] = None, **kwlibs: Union[str, Namespace]) -> None:
+    def __init__(self, schema: str | None = None, **kwlibs: str | Namespace) -> None:
         """ Generate a prefix library from a ShEx schema
 
         :param schema: ShExC Schema
@@ -65,7 +64,7 @@ class PrefixLibrary:
                 setattr(self, m.group(1).upper(), Namespace(m.group(2)))
         return self
 
-    def add_rdf(self, rdf: Union[str, Graph], format: Optional[str] = "turtle") -> "PrefixLibrary":
+    def add_rdf(self, rdf: str | Graph, format: str | None = "turtle") -> "PrefixLibrary":
         if not isinstance(rdf, Graph):
             g = Graph()
             if '\n' in rdf or '\r' in rdf or ' ' in rdf:
@@ -111,7 +110,7 @@ class PrefixLibrary:
                 print(f"Warning: {key} is already defined in namespace {target}. Not overridden")
         return nret
 
-    def nsname(self, uri: Union[str, URIRef]) -> str:
+    def nsname(self, uri: str | URIRef) -> str:
         """
         Return the 'ns:name' format of URI
 

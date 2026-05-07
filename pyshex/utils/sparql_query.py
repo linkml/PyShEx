@@ -1,5 +1,3 @@
-from typing import List
-
 import jsonasobj
 import requests
 from SPARQLWrapper import JSON
@@ -36,7 +34,7 @@ class SPARQLQuery:
         self.endpoint.setQuery(self.query)
         self.endpoint.setReturnFormat(JSON)
 
-    def focus_nodes(self) -> List[URIRef]:
+    def focus_nodes(self) -> list[URIRef]:
         result = self.endpoint.query()
 
         processed_results = jsonasobj.load(result.response)

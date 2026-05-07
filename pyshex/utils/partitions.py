@@ -3,7 +3,7 @@ Partition utilities -
 taken from `Stack Overflow <https://stackoverflow.com/questions/19368375/set-partitions-in-python>`_
 """
 from itertools import permutations
-from typing import List, Iterator, Tuple, Set
+from typing import Iterator
 
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import RDFGraph
 
@@ -90,14 +90,14 @@ def algorithm_u(ns, m):
     return f(m, ng, 0, ng, ag) if m > 1 else [[ns]]
 
 
-def integer_partition(size: int, nparts: int) -> Iterator[List[List[int]]]:
+def integer_partition(size: int, nparts: int) -> Iterator[list[list[int]]]:
     """ Partition a list of integers into a list of partitions """
     for part in algorithm_u(range(size), nparts):
         yield part
 
 
-def filtered_integer_partition(nelements: int, nparts: int) -> Iterator[Tuple[Tuple[int]]]:
-    seen: Set[Tuple[Tuple[int, ...], ...]] = set()
+def filtered_integer_partition(nelements: int, nparts: int) -> Iterator[tuple[tuple[int]]]:
+    seen: set[tuple[tuple[int, ...], ...]] = set()
 
     # Start with the entire set
     if nelements == 0:
@@ -126,7 +126,7 @@ def filtered_integer_partition(nelements: int, nparts: int) -> Iterator[Tuple[Tu
                                 yield pt
 
 
-    # def strip_empty_members(partition: List[List[int]]) -> Tuple[Tuple[int, ...], ...]:
+    # def strip_empty_members(partition: list[list[int]]) -> tuple[tuple[int, ...], ...]:
     #     return tuple(tuple([p for p in part if p < nelements]) for part in partition)
     #
     # if nelements == 0:
@@ -140,7 +140,7 @@ def filtered_integer_partition(nelements: int, nparts: int) -> Iterator[Tuple[Tu
     #                 yield stripped_perm
 
 
-def partition_t(T: RDFGraph, nparts: int) -> Iterator[Tuple[RDFGraph, ...]]:
+def partition_t(T: RDFGraph, nparts: int) -> Iterator[tuple[RDFGraph, ...]]:
     """
     Partition T into all possible partitions of T of size nparts
     :param T: Set of RDF triples to be partitioned
@@ -150,8 +150,8 @@ def partition_t(T: RDFGraph, nparts: int) -> Iterator[Tuple[RDFGraph, ...]]:
     We don't actually partition the triples directly -- instead, we partition a set of integers that
     reference elements in the (ordered) set and return those
     """
-    def partition_map(partition: List[List[int]]) -> Tuple[RDFGraph, ...]:
-        rval: List[RDFGraph, ...] = []
+    def partition_map(partition: list[list[int]]) -> tuple[RDFGraph, ...]:
+        rval: list[RDFGraph, ...] = []
         for part in partition:
             if len(part) == 1 and part[0] >= t_list_len:
                 rval.append(RDFGraph())
@@ -164,7 +164,7 @@ def partition_t(T: RDFGraph, nparts: int) -> Iterator[Tuple[RDFGraph, ...]]:
     return map(lambda partition: partition_map(partition), filtered_integer_partition(t_list_len, nparts))
 
 
-def partition_2(T: RDFGraph) -> List[Tuple[RDFGraph, RDFGraph]]:
+def partition_2(T: RDFGraph) -> list[tuple[RDFGraph, RDFGraph]]:
     """
     Partition T into all possible combinations of two subsets
     :param T: RDF Graph to partition

@@ -1,6 +1,6 @@
 import os
 from urllib.parse import urlsplit
-from typing import List, cast, Optional
+from typing import cast
 
 import requests
 from ShExJSG.ShExJ import Schema
@@ -11,7 +11,7 @@ from pyshex.shex_evaluator import EvaluationResult, ShExEvaluator
 from pyshex.utils.schema_loader import SchemaLoader
 
 
-def fetch_uri(self, url: str, base: str="") -> Optional[str]:
+def fetch_uri(self, url: str, base: str="") -> str | None:
     req = requests.get(base + url)
     if req.ok:
         return req.text
@@ -67,15 +67,15 @@ class ManifestEntry(JsonObj):
             self._rdf.parse(data=self.rdf_text, format="turtle")
         return self._rdf
 
-    def evaluate(self, debug: Optional[bool] = None, debug_slurps: Optional[bool] = None,
-                 over_slurp: Optional[bool] = None) -> List[EvaluationResult]:
+    def evaluate(self, debug: bool | None = None, debug_slurps: bool | None = None,
+                 over_slurp: bool | None = None) -> list[EvaluationResult]:
         return None
 
 
 
 class Manifest:
-    def __init__(self, source, base: Optional[str] = None, debug: Optional[bool] = False,
-                 debug_slurps: Optional[bool] = False,over_slurp: Optional[bool]=True) -> None:
+    def __init__(self, source, base: str | None = None, debug: bool | None = False,
+                 debug_slurps: bool | None = False,over_slurp: bool | None = True) -> None:
         """ Load a manifest
 
         :param source: file name, URI or file-like object that carries the manifest description
@@ -101,5 +101,5 @@ class Manifest:
             entry._manifest = self
 
     @property
-    def entries(self) -> List[ManifestEntry]:
-        return cast(List[ManifestEntry], self.manifest)
+    def entries(self) -> list[ManifestEntry]:
+        return cast(list[ManifestEntry], self.manifest)

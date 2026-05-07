@@ -1,9 +1,7 @@
-from typing import Union, List, Optional
-
 from rdflib import Graph, URIRef, BNode, RDF
 
 
-def format_collection(g: Graph, subj: Union[URIRef, BNode], max_entries: int = None, nentries: int = 0) -> Optional[List[str]]:
+def format_collection(g: Graph, subj: URIRef | BNode, max_entries: int = None, nentries: int = 0) -> list[str] | None:
     """
     Return the turtle representation of subj as a collection
 
@@ -12,7 +10,7 @@ def format_collection(g: Graph, subj: Union[URIRef, BNode], max_entries: int = N
     :param max_entries: maximum number of list elements to return, None means all
     :param nentries: used for recursion
 
-    :return: List of formatted entries if subj heads a well formed collection else None
+    :return: list of formatted entries if subj heads a well formed collection else None
     """
     if subj == RDF.nil:
         return [')']

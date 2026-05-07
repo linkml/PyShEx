@@ -1,7 +1,6 @@
 import os
 import re
-from typing import cast, Union, TextIO, Optional
-from urllib.request import urlopen
+from typing import cast, TextIO
 
 from ShExJSG import ShExJ
 from pyjsg.jsglib import loads
@@ -23,7 +22,7 @@ class SchemaLoader:
         self.root_location = None
         self.schema_text = None
 
-    def load(self, schema_file: Union[str, TextIO], schema_location: Optional[str]=None) -> ShExJ.Schema:
+    def load(self, schema_file: str | TextIO, schema_location: str | None = None) -> ShExJ.Schema:
         """ Load a ShEx Schema from schema_location
 
         :param schema_file:  name or file-like object to deserialize
