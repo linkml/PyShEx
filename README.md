@@ -1,3 +1,14 @@
+This repository was originally developed by [Harold Solbrig](https://github.com/hsolbrig) and was kindly contributed
+to the LinkML organization because of his retirement. All credit for the original development of this repository goes
+to him.
+
+# Special note
+Since development was taken over  after a long time of no development, there are tests that are not passing.
+The reasons are not always immediately clear, in some cases it is due to code not having been updated when dependencies
+updated their versions. In other cases, there are genuine bugs that have not been fixed. The current release was
+released in order to be able to support Python 3.14 in LinkML. Please get in touch by opening an issue if you
+encounter any bugs.
+
 # Python implementation of ShEx 2.0
 [![Pyversions](https://img.shields.io/pypi/pyversions/PyShEx.svg)](https://pypi.python.org/pypi/PyShEx)
 
