@@ -1,7 +1,4 @@
-import unittest
-
 import os
-from typing import Dict, Optional
 
 import sys
 from ShExJSG import ShExJ
@@ -19,48 +16,42 @@ from tests.utils.uri_redirector import URIRedirector
 # TODO: Remove this whenever rdflib issue #124 is fixed (https://github.com/RDFLib/rdflib/issues/804)
 sys.setrecursionlimit(1200)
 
-ENTRY_NAME = ''                          # Individual element to test
-START_AFTER = ''                         # Element to start at (or after)
+ENTRY_NAME = ''
+START_AFTER = ''
 
 CONTINUE_ON_FAIL = not(START_AFTER)
 VERBOSE = False
 DEBUG = bool(ENTRY_NAME) or bool(START_AFTER)
-TEST_SKIPS_ONLY = False                     # Double check that all skips need skipping
-USE_LOCAL_FILES = True                     # Use local files if possible
+TEST_SKIPS_ONLY = False
+USE_LOCAL_FILES = True
 
-# Do Not Change this - must match manifest
 REMOTE_FILE_LOC = "https://raw.githubusercontent.com/shexSpec/shexTest/master/"
 
-
-# Local equivalent of online data files
-# Note:
-shextest_path = os.path.abspath(os.path.join(os.path.dirname(__file__),     # utils
-                                             '..',                          # tests
-                                             'data',                        # tests/data
-                                             'shexTest'))                   # tests/data/shexTest
+shextest_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                             '..',
+                                             'data',
+                                             'shexTest'))
 
 BASE_FILE_LOC = shextest_path if USE_LOCAL_FILES and os.path.exists(shextest_path) else REMOTE_FILE_LOC
 BASE_FILE_LOC = BASE_FILE_LOC + ('/' if not BASE_FILE_LOC.endswith('/') else '')
 print(f"*****> Running test from {BASE_FILE_LOC}\n")
 
-
-# Reasons for skipping things
 FOCUS_DATATYPE = "FocusDatatype"
 
 skip_traits = [SHT.BNodeShapeLabel, SHT.ToldBNode, SHT.LexicalBNode, SHT.ShapeMap, SHT.Import, SHT.relativeIRI]
 
-# We can't do an effective test on relative files when we're rewriting URI's
 if BASE_FILE_LOC != REMOTE_FILE_LOC:
     skip_traits.append(SHT.relativeIRI)
 
 
-class ManifestEntryTestCase(unittest.TestCase):
+class ManifestEntryTestCase:
     """
     Base class for manifest tests
     """
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
+        cls.expected_failures: dict[str, str] = {}
         cls.mfst = ShExManifest(os.path.join(BASE_FILE_LOC, 'validation', 'manifest.ttl'),
                                 manifest_format="turtle")
         if BASE_FILE_LOC != REMOTE_FILE_LOC:
@@ -74,12 +65,7 @@ class ManifestEntryTestCase(unittest.TestCase):
         cls.nskipped = 0
         cls.nfailed = 0
         cls.start_skipped = 0
-        cls.skip_reasons: Dict[str, int] = {}
-
-    def __init__(self, methodname: str=None, expected_failures: Dict[str, str]=None):
-        super().__init__(methodname)
-        self.expected_failures: Dict[str, str] = {} if expected_failures is None else expected_failures
-
+        cls.skip_reasons: dict[str, int] = {}
 
     @staticmethod
     def URIname(uri: URIRef) -> str:
@@ -91,8 +77,6 @@ class ManifestEntryTestCase(unittest.TestCase):
 
     def skip(self, me_name: str) -> None:
         self.nskipped += 1
-        # Don't report skips - they show up as red "fails".  Omitting leaves black "untested"
-        # self.add_earl('skipped', me_name)
 
     def fail(self, me_name: str) -> None:
         self.nfailed += 1
@@ -104,8 +88,7 @@ class ManifestEntryTestCase(unittest.TestCase):
 
     def eval_entry(self, entry_name: str) -> bool:
         mes = self.mfst.entries[entry_name]
-        for me in mes:                          # There can be more than one entry per name...
-            # Determine the start point
+        for me in mes:
             if not self.started:
                 if not me.name.startswith(START_AFTER):
                     self.start_skipped += 1
@@ -115,10 +98,8 @@ class ManifestEntryTestCase(unittest.TestCase):
                     if VERBOSE:
                         print(f"STARTED - Skipped {self.start_skipped} entries")
 
-            # Determine whether this entry should be skipped
             should_skip = False
 
-            # Skip
             skipped_traits = list(me.traits.intersection(skip_traits))
             if skipped_traits:
                 if VERBOSE:
@@ -144,7 +125,6 @@ class ManifestEntryTestCase(unittest.TestCase):
             if TEST_SKIPS_ONLY and not should_skip:
                 return True
 
-            # Validate the entry
             if VERBOSE:
                 shex_uri = self.mfst.schema_loader.location_rewrite(me.schema_uri)
                 data_uri = self.mfst.data_redirector.uri_for(me.data_uri) \
@@ -173,18 +153,11 @@ class ManifestEntryTestCase(unittest.TestCase):
                 print(f"\t TRAITS: ({','.join(me.traits)})")
                 self.fail(me.name)
                 return False
-            # if ':' not in focus:
-            #     focus = "file://" + focus
             map_.add(ShapeAssociation(focus, ShExJ.IRIREF(me.shape) if me.shape else START))
 
-            #################################
-            #  Actual validation occurs here
-            #################################
             rslt = isValid(cntxt, map_)
-
             test_result, reasons = rslt[0] or not me.should_pass, rslt[1]
 
-            # Analyze the result
             if not VERBOSE and not test_result:
                 print(f"Failed {me.name} ({'P' if me.should_pass else 'F'}): {me.schema_uri} - {me.data_uri}")
                 print(f"\t TRAITS: ({','.join(me.traits)})")
@@ -199,7 +172,7 @@ class ManifestEntryTestCase(unittest.TestCase):
                 self.fail(me.name)
             return test_result
 
-    def do_test(self, earl: Optional[EARLPage]=None):
+    def do_test(self, earl: EARLPage | None = None):
         self.earl_report = earl
         if ENTRY_NAME:
             rslt = self.eval_entry(ENTRY_NAME)
@@ -215,4 +188,4 @@ class ManifestEntryTestCase(unittest.TestCase):
         from pprint import PrettyPrinter
         pp = PrettyPrinter().pprint
         pp(self.skip_reasons)
-        self.assertTrue(rslt)
+        assert rslt

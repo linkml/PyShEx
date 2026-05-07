@@ -1,5 +1,4 @@
 import os
-import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 
@@ -7,26 +6,22 @@ from rdflib import Graph, Namespace, URIRef
 
 from pyshex import PrefixLibrary, standard_prefixes, known_prefixes
 
-# Install the turtle w/ prefixes library
 from pyshex.utils import tortoise
 
 tortoise.register()
 
 
-class PrefixLibTestCase(unittest.TestCase):
-    def test_basics(self):
-        """ Test basic functions """
-        pl = PrefixLibrary()
-        print(str(pl))
-        g = Graph()
-        pl.add_bindings_to(g)
+def test_basics():
+    pl = PrefixLibrary()
+    print(str(pl))
+    g = Graph()
+    pl.add_bindings_to(g)
 
-        # Version 5.0.0 of rdflib no longer emits unused prefixes, so we use the "tortoise" extension
-        self.assertEqual("""@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    assert g.serialize(format="tortoise").decode().strip() == """@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .""", g.serialize(format="tortoise").decode().strip())
-        pl = PrefixLibrary("""@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> ."""
+    pl = PrefixLibrary("""@prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix wikibase: <http://wikiba.se/ontology-beta#> .
 @prefix wds: <http://www.wikidata.org/entity/statement/> .
 @prefix wdata: <https://www.wikidata.org/wiki/Special:EntityData/> .
@@ -54,35 +49,35 @@ class PrefixLibTestCase(unittest.TestCase):
 
 and some junk""")
 
-        self.assertEqual(
-            [('OWL', Namespace('http://www.w3.org/2002/07/owl#')),
-             ('WIKIBASE', Namespace('http://wikiba.se/ontology-beta#')),
-             ('WDS', Namespace('http://www.wikidata.org/entity/statement/')),
-             ('WDATA', Namespace('https://www.wikidata.org/wiki/Special:EntityData/')),
-             ('SKOS', Namespace('http://www.w3.org/2004/02/skos/core#')),
-             ('SCHEMA', Namespace('http://schema.org/')),
-             ('CC', Namespace('http://creativecommons.org/ns#')),
-             ('GEO', Namespace('http://www.opengis.net/ont/geosparql#')),
-             ('PROV', Namespace('http://www.w3.org/ns/prov#')),
-             ('WDREF', Namespace('http://www.wikidata.org/reference/')),
-             ('WDV', Namespace('http://www.wikidata.org/value/')),
-             ('WD', Namespace('http://www.wikidata.org/entity/')),
-             ('WDT', Namespace('http://www.wikidata.org/prop/direct/')),
-             ('WDTN', Namespace('http://www.wikidata.org/prop/direct-normalized/')),
-             ('P', Namespace('http://www.wikidata.org/prop/')),
-             ('PS', Namespace('http://www.wikidata.org/prop/statement/')),
-             ('PSV', Namespace('http://www.wikidata.org/prop/statement/value/')),
-             ('PSN', Namespace('http://www.wikidata.org/prop/statement/value-normalized/')),
-             ('PQ', Namespace('http://www.wikidata.org/prop/qualifier/')),
-             ('PQV', Namespace('http://www.wikidata.org/prop/qualifier/value/')),
-             ('PQN', Namespace('http://www.wikidata.org/prop/qualifier/value-normalized/')),
-             ('PR', Namespace('http://www.wikidata.org/prop/reference/')),
-             ('PRV', Namespace('http://www.wikidata.org/prop/reference/value/')),
-             ('PRN', Namespace('http://www.wikidata.org/prop/reference/value-normalized/')),
-             ('WDNO', Namespace('http://www.wikidata.org/prop/novalue/'))], [e for e in pl]
-        )
-        
-        pl = PrefixLibrary("""
+    assert [e for e in pl] == [
+        ('OWL', Namespace('http://www.w3.org/2002/07/owl#')),
+        ('WIKIBASE', Namespace('http://wikiba.se/ontology-beta#')),
+        ('WDS', Namespace('http://www.wikidata.org/entity/statement/')),
+        ('WDATA', Namespace('https://www.wikidata.org/wiki/Special:EntityData/')),
+        ('SKOS', Namespace('http://www.w3.org/2004/02/skos/core#')),
+        ('SCHEMA', Namespace('http://schema.org/')),
+        ('CC', Namespace('http://creativecommons.org/ns#')),
+        ('GEO', Namespace('http://www.opengis.net/ont/geosparql#')),
+        ('PROV', Namespace('http://www.w3.org/ns/prov#')),
+        ('WDREF', Namespace('http://www.wikidata.org/reference/')),
+        ('WDV', Namespace('http://www.wikidata.org/value/')),
+        ('WD', Namespace('http://www.wikidata.org/entity/')),
+        ('WDT', Namespace('http://www.wikidata.org/prop/direct/')),
+        ('WDTN', Namespace('http://www.wikidata.org/prop/direct-normalized/')),
+        ('P', Namespace('http://www.wikidata.org/prop/')),
+        ('PS', Namespace('http://www.wikidata.org/prop/statement/')),
+        ('PSV', Namespace('http://www.wikidata.org/prop/statement/value/')),
+        ('PSN', Namespace('http://www.wikidata.org/prop/statement/value-normalized/')),
+        ('PQ', Namespace('http://www.wikidata.org/prop/qualifier/')),
+        ('PQV', Namespace('http://www.wikidata.org/prop/qualifier/value/')),
+        ('PQN', Namespace('http://www.wikidata.org/prop/qualifier/value-normalized/')),
+        ('PR', Namespace('http://www.wikidata.org/prop/reference/')),
+        ('PRV', Namespace('http://www.wikidata.org/prop/reference/value/')),
+        ('PRN', Namespace('http://www.wikidata.org/prop/reference/value-normalized/')),
+        ('WDNO', Namespace('http://www.wikidata.org/prop/novalue/')),
+    ]
+
+    pl = PrefixLibrary("""
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX prov: <http://www.w3.org/ns/prov#>
 PREFIX p: <http://www.wikidata.org/prop/>
@@ -105,24 +100,25 @@ gw:cancer {
   pr:P813  xsd:dateTime ;
   pr:P699  LITERAL
 }""", foaf=known_prefixes.FOAF, owl=known_prefixes.OWL, rdfs=standard_prefixes.RDFS)
-        self.assertEqual(
-            [('XSD', Namespace('http://www.w3.org/2001/XMLSchema#')),
-             ('PROV', Namespace('http://www.w3.org/ns/prov#')),
-             ('P', Namespace('http://www.wikidata.org/prop/')),
-             ('PR', Namespace('http://www.wikidata.org/prop/reference/')),
-             ('PRV', Namespace('http://www.wikidata.org/prop/reference/value/')),
-             ('PV', Namespace('http://www.wikidata.org/prop/value/')),
-             ('PS', Namespace('http://www.wikidata.org/prop/statement/')),
-             ('GW', Namespace('http://genewiki.shape/')),
-             ('FOAF', Namespace('http://xmlns.com/foaf/0.1/')),
-             ('OWL', Namespace('http://www.w3.org/2002/07/owl#')),
-             ('RDFS', Namespace('http://www.w3.org/2000/01/rdf-schema#'))], [e for e in pl])
+    assert [e for e in pl] == [
+        ('XSD', Namespace('http://www.w3.org/2001/XMLSchema#')),
+        ('PROV', Namespace('http://www.w3.org/ns/prov#')),
+        ('P', Namespace('http://www.wikidata.org/prop/')),
+        ('PR', Namespace('http://www.wikidata.org/prop/reference/')),
+        ('PRV', Namespace('http://www.wikidata.org/prop/reference/value/')),
+        ('PV', Namespace('http://www.wikidata.org/prop/value/')),
+        ('PS', Namespace('http://www.wikidata.org/prop/statement/')),
+        ('GW', Namespace('http://genewiki.shape/')),
+        ('FOAF', Namespace('http://xmlns.com/foaf/0.1/')),
+        ('OWL', Namespace('http://www.w3.org/2002/07/owl#')),
+        ('RDFS', Namespace('http://www.w3.org/2000/01/rdf-schema#')),
+    ]
 
-        pl = PrefixLibrary(None, ex="http://example.org/")
-        self.assertEqual("http://example.org/", str(pl.EX))
+    pl = PrefixLibrary(None, ex="http://example.org/")
+    assert str(pl.EX) == "http://example.org/"
 
-        known_prefixes.add_bindings_to(g)
-        self.assertEqual("""@prefix dc: <http://purl.org/dc/elements/1.1/> .
+    known_prefixes.add_bindings_to(g)
+    assert g.serialize(format="tortoise").decode().strip() == """@prefix dc: <http://purl.org/dc/elements/1.1/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -132,11 +128,11 @@ gw:cancer {
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
 @prefix xmlns: <http://www.w3.org/XML/1998/namespace> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .""", g.serialize(format="tortoise").decode().strip())
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> ."""
 
-    def test_nsname(self):
-        """ Test the nsname method """
-        pl = PrefixLibrary("""@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+def test_nsname():
+    pl = PrefixLibrary("""@prefix owl: <http://www.w3.org/2002/07/owl#> .
         @prefix wikibase: <http://wikiba.se/ontology-beta#> .
         @prefix wds: <http://www.wikidata.org/entity/statement/> .
         @prefix wdata: <https://www.wikidata.org/wiki/Special:EntityData/> .
@@ -163,18 +159,17 @@ gw:cancer {
         @prefix wdno: <http://www.wikidata.org/prop/novalue/> .
 
         and some junk""")
-        self.assertEqual("wdt:penguins", pl.nsname("http://www.wikidata.org/prop/direct/penguins"))
-        self.assertEqual("p:polarbear", pl.nsname("http://www.wikidata.org/prop/polarbear"))
-        self.assertEqual("psn:elf", pl.nsname("http://www.wikidata.org/prop/statement/value-normalized/elf"))
-        self.assertEqual("http://www.wikidata1.org/prop/qualifier/",
-                         pl.nsname("http://www.wikidata1.org/prop/qualifier/"))
+    assert pl.nsname("http://www.wikidata.org/prop/direct/penguins") == "wdt:penguins"
+    assert pl.nsname("http://www.wikidata.org/prop/polarbear") == "p:polarbear"
+    assert pl.nsname("http://www.wikidata.org/prop/statement/value-normalized/elf") == "psn:elf"
+    assert pl.nsname("http://www.wikidata1.org/prop/qualifier/") == "http://www.wikidata1.org/prop/qualifier/"
 
-    def test_add_to_object(self):
-        """ Test the PrefixLibrary add_to_object function """
-        class TargetObj:
-            pass
 
-        pl = PrefixLibrary("""
+def test_add_to_object():
+    class TargetObj:
+        pass
+
+    pl = PrefixLibrary("""
         PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
         PREFIX prov: <http://www.w3.org/ns/prov#>
         PREFIX p: <http://www.wikidata.org/prop/>
@@ -183,41 +178,41 @@ gw:cancer {
         PREFIX pv: <http://www.wikidata.org/prop/value/>
         PREFIX ps: <http://www.wikidata.org/prop/statement/>
         PREFIX gw: <http://genewiki.shape/>""")
-        self.assertEqual(8, pl.add_to_object(TargetObj))
-        self.assertEqual(URIRef('http://www.w3.org/ns/prov#spiders'), TargetObj.PROV.spiders)
+    assert pl.add_to_object(TargetObj) == 8
+    assert TargetObj.PROV.spiders == URIRef('http://www.w3.org/ns/prov#spiders')
 
-        class TargetObj2:
-            GW: int = 42
-        output = StringIO()
-        with redirect_stdout(output):
-            self.assertEqual(7, pl.add_to_object(TargetObj2))
-        self.assertTrue(output.getvalue().strip().startswith("Warning: GW is already defined in namespace "))
+    class TargetObj2:
+        GW: int = 42
 
-    def test_add_to_module(self):
-        """ Test the ability to inject namespaces into the surrounding module """
-        output = StringIO()
-        with redirect_stdout(output):
-            from tests.test_support_libraries import local_context
+    output = StringIO()
+    with redirect_stdout(output):
+        assert pl.add_to_object(TargetObj2) == 7
+    assert output.getvalue().strip().startswith("Warning: GW is already defined in namespace ")
 
-        self.assertTrue(output.getvalue().startswith('Warning: XSD is already defined in namespace'))
-        self.assertEqual(URIRef("http://www.w3.org/ns/prov#drooling"), local_context.sample('drooling'))
-        self.assertEqual(URIRef("http://nonxml.com/item#type"), local_context.rdf('type'))
 
-    def test_add_shex_filename(self):
-        """ Test adding Shex from a file """
-        filename = os.path.join(os.path.dirname(__file__), '..', 'data', 't1.shex')
-        pl = PrefixLibrary(filename)
-        self.assertEqual("""PREFIX drugbank: <http://wifo5-04.informatik.uni-mannheim.de/drugbank/resource/drugbank/>
+def test_add_to_module():
+    output = StringIO()
+    with redirect_stdout(output):
+        from tests.test_support_libraries import local_context
+
+    assert output.getvalue().startswith('Warning: XSD is already defined in namespace')
+    assert local_context.sample('drooling') == URIRef("http://www.w3.org/ns/prov#drooling")
+    assert local_context.rdf('type') == URIRef("http://nonxml.com/item#type")
+
+
+def test_add_shex_filename():
+    filename = os.path.join(os.path.dirname(__file__), '..', 'data', 't1.shex')
+    pl = PrefixLibrary(filename)
+    assert str(pl).strip() == """PREFIX drugbank: <http://wifo5-04.informatik.uni-mannheim.de/drugbank/resource/drugbank/>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>""", str(pl).strip())
-        self.assertEqual(URIRef("http://wifo5-04.informatik.uni-mannheim.de/drugbank/resource/drugbank/junk"),
-                         pl.DRUGBANK.junk)
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>"""
+    assert pl.DRUGBANK.junk == URIRef("http://wifo5-04.informatik.uni-mannheim.de/drugbank/resource/drugbank/junk")
 
-    def test_add_shex_url(self):
-        """ Test adding ShEx from a URL """
-        pl = PrefixLibrary(
-            "https://raw.githubusercontent.com/SuLab/Genewiki-ShEx/master/diseases/wikidata-disease-ontology.shex")
-        self.assertEqual("""PREFIX wd: <http://www.wikidata.org/entity/>
+
+def test_add_shex_url():
+    pl = PrefixLibrary(
+        "https://raw.githubusercontent.com/SuLab/Genewiki-ShEx/master/diseases/wikidata-disease-ontology.shex")
+    assert str(pl).strip() == """PREFIX wd: <http://www.wikidata.org/entity/>
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX p: <http://www.wikidata.org/prop/>
 PREFIX prov: <http://www.w3.org/ns/prov#>
@@ -230,14 +225,12 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX schema: <http://schema.org/>
 PREFIX do: <http://purl.obolibrary.org/obo/DOID_>
 PREFIX doio: <http://identifiers.org/doid/>
-PREFIX mir: <http://www.ebi.ac.uk/miriam/main/collections/>""", str(pl).strip())
+PREFIX mir: <http://www.ebi.ac.uk/miriam/main/collections/>"""
 
 
-    def test_add_rdf_str(self):
-        """ Test adding RDF directly from a string """
-        pl = PrefixLibrary()
-
-        rdf = """
+def test_add_rdf_str():
+    pl = PrefixLibrary()
+    rdf = """
 @prefix dc: <http://purl.org/dc/elements/1.1/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
@@ -245,8 +238,8 @@ PREFIX mir: <http://www.ebi.ac.uk/miriam/main/collections/>""", str(pl).strip())
 @prefix ex: <http://example.org/test/> .
 
 ex:Sam a foaf:Person."""
-        pl.add_rdf(rdf)
-        self.assertEqual("""PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+    pl.add_rdf(rdf)
+    assert str(pl).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -254,14 +247,13 @@ PREFIX dc: <http://purl.org/dc/elements/1.1/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX ex: <http://example.org/test/>""", str(pl).strip())
+PREFIX ex: <http://example.org/test/>"""
 
-    def test_add_rdf_file(self):
-        """ Test adding RDF directly from a file """
-        # Note: earlier versions of this included an 'PREFIX ex: <http://example.org/>' -- the latest doesn't
-        filename = os.path.join(os.path.dirname(__file__), '..', 'data', 'earl_report.ttl')
-        pl = PrefixLibrary()
-        self.assertEqual("""PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+
+def test_add_rdf_file():
+    filename = os.path.join(os.path.dirname(__file__), '..', 'data', 'earl_report.ttl')
+    pl = PrefixLibrary()
+    assert str(pl.add_rdf(filename)).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -269,11 +261,11 @@ PREFIX dc: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
 PREFIX earl: <http://www.w3.org/ns/earl#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX ns1: <http://purl.org/dc/elements/1.1/>""", str(pl.add_rdf(filename)).strip())
-        g = Graph()
-        g.load(filename, format="turtle")
-        pl = PrefixLibrary()
-        self.assertEqual("""PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+PREFIX ns1: <http://purl.org/dc/elements/1.1/>"""
+    g = Graph()
+    g.load(filename, format="turtle")
+    pl = PrefixLibrary()
+    assert str(pl.add_rdf(g)).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -281,14 +273,14 @@ PREFIX dc: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
 PREFIX earl: <http://www.w3.org/ns/earl#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX ns1: <http://purl.org/dc/elements/1.1/>""", str(pl.add_rdf(g)).strip())
+PREFIX ns1: <http://purl.org/dc/elements/1.1/>"""
 
-    def test_add_rdf_url(self):
-        """ Test adding RDF from a URL """
-        pl = PrefixLibrary()
-        pl.add_rdf("https://raw.githubusercontent.com/prefixcommons/biocontext/master/registry/go_context.jsonld",
-                   format="json-ld")
-        self.assertEqual("""PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+
+def test_add_rdf_url():
+    pl = PrefixLibrary()
+    pl.add_rdf("https://raw.githubusercontent.com/prefixcommons/biocontext/master/registry/go_context.jsonld",
+               format="json-ld")
+    assert str(pl).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -365,18 +357,18 @@ PREFIX omim: <http://omim.org/entry/>
 PREFIX intact: <http://identifiers.org/intact/>
 PREFIX ensembl_geneid: <http://www.ensembl.org/id/>
 PREFIX uniprotkb-kw: <http://www.uniprot.org/keywords/>
-PREFIX eupathdb: <http://eupathdb.org/gene/>""", str(pl).strip())
+PREFIX eupathdb: <http://eupathdb.org/gene/>"""
 
-    def test_standardprefixes(self):
-        """ Test the pre-packaged standard prefixes """
-        self.assertEqual("""PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+def test_standardprefixes():
+    assert str(standard_prefixes).strip() == """PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xml: <http://www.w3.org/XML/1998/namespace>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>""", str(standard_prefixes).strip())
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>"""
 
-    def test_knownprefixes(self):
-        """ Test the pre-packaged known prefixes """
-        self.assertEqual("""PREFIX dc: <http://purl.org/dc/elements/1.1/>
+
+def test_knownprefixes():
+    assert str(known_prefixes).strip() == """PREFIX dc: <http://purl.org/dc/elements/1.1/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
@@ -385,15 +377,10 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX xmlns: <http://www.w3.org/XML/1998/namespace>""", str(known_prefixes).strip())
-
-    def test_edge_cases(self):
-        """ Test some of the edge cases """
-        # Test a default URL
-        shex = "PREFIX : <http://example.org/sample/>"
-        pl = PrefixLibrary(shex)
-        print(str(pl).strip())
+PREFIX xmlns: <http://www.w3.org/XML/1998/namespace>"""
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_edge_cases():
+    shex = "PREFIX : <http://example.org/sample/>"
+    pl = PrefixLibrary(shex)
+    print(str(pl).strip())

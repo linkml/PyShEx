@@ -1,8 +1,7 @@
 from pyshex import ShExEvaluator
 
 
-ds_shex = """
-
+DS_SHEX = """
 PREFIX :   <http://example.org/>
 PREFIX schema: <http://schema.org/>
 PREFIX techdoc: <http://schema.org/>
@@ -18,7 +17,7 @@ BASE <http://schema.org/shex>
 # assumes we have loaded the subClassOf type hierarchy:
 <#SubDataset> <#SubDatasetKnownClosure> OR { rdfs:subClassOf @<#SubDataset> }
 
-# doesn’t assume we have loaded the subClassOf type hierarchy:
+# doesn't assume we have loaded the subClassOf type hierarchy:
 <#SubDatasetKnownClosure> [schema:Dataset schema:DataFeed]
 
 <#SubWork> [schema:CreativeWork] OR { rdfs:subClassOf @<#SubWork> }
@@ -37,11 +36,9 @@ BASE <http://schema.org/shex>
     schema:sameAs @<#BasicUrlSh> *;
     schema:thumbnailUrl @<#BasicUrlSh> *;
   }  
-
 """
 
-evaluator = ShExEvaluator(schema=ds_shex, start="http://schema.org/shex#BasicDatasetShape")
-good_eg_1 = """    {
+GOOD_EG_1 = """    {
       "@id": "http://example.org/good_",
       "@type":"Dataset",
       "@context": {
@@ -113,7 +110,13 @@ good_eg_1 = """    {
     }
 """
 
-rval = evaluator.evaluate(good_eg_1, focus="http://example.org/good_", rdf_format="json-ld")
-for r in rval:
-    if not r.result:
-        print(r.reason)
+FOCUS = "http://example.org/good_"
+START = "http://schema.org/shex#BasicDatasetShape"
+
+
+def test_basic_dataset_shape_conforms() -> None:
+    results = ShExEvaluator(schema=DS_SHEX, start=START).evaluate(
+        GOOD_EG_1, focus=FOCUS, rdf_format="json-ld"
+    )
+    failures = [(r.focus, r.reason) for r in results if not r.result]
+    assert not failures, f"ShEx validation failed:\n" + "\n".join(r for _, r in failures)
