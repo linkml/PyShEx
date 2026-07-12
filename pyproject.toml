@@ -97,3 +97,5 @@ deps = [
 commands = [
   ["codespell", "{posargs}"]
 ]
+[tool.uv.sources]
+pyshexc = { git = "https://github.com/ericprud/grammar-python-antlr-linkml.git", branch = "extends-shaperef" }
