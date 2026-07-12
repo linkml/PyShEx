@@ -2,7 +2,7 @@ import os
 
 import sys
 from ShExJSG import ShExJ
-from rdflib import URIRef
+from rdflib import BNode, Literal, URIRef
 import rdflib_shim
 shimin = rdflib_shim.RDFLIB_SHIM
 
@@ -16,13 +16,13 @@ from tests.utils.uri_redirector import URIRedirector
 # TODO: Remove this whenever rdflib issue #124 is fixed (https://github.com/RDFLib/rdflib/issues/804)
 sys.setrecursionlimit(1200)
 
-ENTRY_NAME = ''
+ENTRY_NAME = os.environ.get('ENTRY_NAME', '')
 START_AFTER = ''
 
 CONTINUE_ON_FAIL = not(START_AFTER)
 VERBOSE = False
 DEBUG = bool(ENTRY_NAME) or bool(START_AFTER)
-TEST_SKIPS_ONLY = False
+TEST_SKIPS_ONLY = bool(os.environ.get('TEST_SKIPS_ONLY'))
 USE_LOCAL_FILES = True
 
 REMOTE_FILE_LOC = "https://raw.githubusercontent.com/shexSpec/shexTest/master/"
@@ -38,10 +38,9 @@ print(f"*****> Running test from {BASE_FILE_LOC}\n")
 
 FOCUS_DATATYPE = "FocusDatatype"
 
-skip_traits = [SHT.BNodeShapeLabel, SHT.ToldBNode, SHT.LexicalBNode, SHT.ShapeMap, SHT.Import, SHT.relativeIRI]
+skip_traits = []
 
-if BASE_FILE_LOC != REMOTE_FILE_LOC:
-    skip_traits.append(SHT.relativeIRI)
+
 
 
 class ManifestEntryTestCase:
@@ -146,14 +145,30 @@ class ManifestEntryTestCase:
             cntxt = Context(g, s, me.extern_shape_for, base_namespace=BASE_FILE_LOC)
             cntxt.debug_context.debug = DEBUG
             map_ = FixedShapeMap()
-            focus = self.mfst.data_uri(me.focus)
-            if not focus:
-                print("\t***** FAIL *****")
-                print(f"\tFocus: {me.focus} not in schema")
-                print(f"\t TRAITS: ({','.join(me.traits)})")
-                self.fail(me.name)
-                return False
-            map_.add(ShapeAssociation(focus, ShExJ.IRIREF(me.shape) if me.shape else START))
+            shape_map = me.shape_map()
+            if shape_map is not None:
+                for node, shape in shape_map:
+                    map_.add(ShapeAssociation(URIRef(node), ShExJ.IRIREF(shape)))
+            else:
+                focus = self.mfst.data_uri(me.focus)
+                if focus is not None and not isinstance(focus, (BNode, Literal)):
+                    # manifest-resolved (and possibly locally-redirected) focus must live
+                    # in the same canonical IRI space as the data graph
+                    focus = URIRef(self.mfst.schema_loader.canonical_location(str(focus).replace('file://', '')))
+                if focus is None:
+                    print("\t***** FAIL *****")
+                    print(f"\tFocus: {me.focus} not in schema")
+                    print(f"\t TRAITS: ({','.join(me.traits)})")
+                    self.fail(me.name)
+                    return False
+                # a shape resolved against the local manifest copy must be compared in
+                # the schema's canonical (remote) IRI space
+                shape_iri = None if not me.shape else \
+                    self.mfst.schema_loader.canonical_location(str(me.shape).replace('file://', ''))
+                shape_label = START if not me.shape \
+                    else ShExJ.BNODE('_:' + str(me.shape)) if isinstance(me.shape, BNode) \
+                    else ShExJ.IRIREF(shape_iri)
+                map_.add(ShapeAssociation(focus, shape_label))
 
             rslt = isValid(cntxt, map_)
             test_result, reasons = rslt[0] or not me.should_pass, rslt[1]
