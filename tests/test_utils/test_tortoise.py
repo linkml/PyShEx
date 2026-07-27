@@ -5,13 +5,14 @@ tortoise.register()
 
 
 def test_tortoise():
-    g = Graph()
+    g = Graph(bind_namespaces="core")
 
     result = g.serialize(format="tortoise")
     if isinstance(result, bytes):
         result = result.decode()
 
-    assert result.strip() == """@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    assert result.strip() == """@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .""".strip()
@@ -30,6 +31,7 @@ def test_tortoise():
         result = result.decode()
 
     assert result.strip() == """@prefix foo: <http://example.org/foo#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .

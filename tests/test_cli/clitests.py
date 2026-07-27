@@ -80,12 +80,12 @@ class CLITestCase:
         assert success or failexpected
 
         if not os.path.exists(testfile_path):
-            with open(testfile_path, 'w') as f:
+            with open(testfile_path, 'w', encoding='utf-8') as f:
                 f.write(outf.getvalue())
             self.__class__.creation_messages.append(f'{testfile_path} did not exist - updated')
 
         if testfile:
-            with open(testfile_path) as f:
+            with open(testfile_path, encoding='utf-8') as f:
                 new_txt = text_filter(outf.getvalue())
                 old_txt = text_filter(f.read())
                 if old_txt != new_txt and tox_wrap_fix:

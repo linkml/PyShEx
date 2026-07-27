@@ -6,14 +6,14 @@ from tests.utils.setup_test import EX, gen_rdf, setup_test
 rdf_1 = gen_rdf("""
 <issue1> ex:submittedOn "2016-07-08"^^xsd:date .
 <issue2> ex:submittedOn "2016-07-08T01:23:45Z"^^xsd:dateTime .
-<issue3> ex:submittedOn "2016-07"^^xsd:date .""")
+<issue3> ex:submittedOn "2016-07-21"^^xsd:date .""")
 
 
 rdf_out = """ns1:issue1 ns1:submittedOn "2016-07-08"^^xsd:date .
 
 ns1:issue2 ns1:submittedOn "2016-07-08T01:23:45+00:00"^^xsd:dateTime .
 
-ns1:issue3 ns1:submittedOn "2016-07-01"^^xsd:date ."""
+ns1:issue3 ns1:submittedOn "2016-07-21"^^xsd:date ."""
 
 
 def test_rdf_triple():

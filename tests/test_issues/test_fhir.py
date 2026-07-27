@@ -5,6 +5,7 @@ from io import StringIO
 import pytest
 
 from pyshex.shex_evaluator import evaluate_cli
+from tests import SKIP_EXTERNAL_URLS, SKIP_EXTERNAL_URLS_MSG
 
 SOURCE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'data')
 
@@ -23,6 +24,7 @@ def _run_and_compare(args, result_path):
         assert f.read() == outf.getvalue()
 
 
+@pytest.mark.skipif(SKIP_EXTERNAL_URLS, reason=SKIP_EXTERNAL_URLS_MSG)
 def test_observation_online():
     """Test online FHIR example."""
     _run_and_compare(

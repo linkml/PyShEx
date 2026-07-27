@@ -31,11 +31,11 @@ def test_max_cardinality_zero_and_error_reporting(paths: dict[str, str]) -> None
     actual = output.getvalue()
 
     if not os.path.exists(paths["expected"]):
-        with open(paths["expected"], 'w') as f:
+        with open(paths["expected"], 'w', encoding='utf-8') as f:
             f.write(actual)
         pytest.fail("Expected output file created — rerun the test suite")
 
-    with open(paths["expected"]) as f:
+    with open(paths["expected"], encoding='utf-8') as f:
         expected = f.read()
 
     assert actual == expected

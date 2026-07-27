@@ -64,6 +64,12 @@ dev = [
     "coverage",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tests/data holds test *data* (including the shexTest submodule, which ships
+# its own pytest suite) — never collect from it
+addopts = "--ignore=tests/data"
+
 [tool.black]
 line-length = 120
 target-version = ["py310", "py311", "py312", "py313",  "py314"]

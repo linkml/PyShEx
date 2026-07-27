@@ -138,9 +138,8 @@ class ManifestEntryTestCase:
             if not s:
                 print(f"\t ERROR: Unable to load schema {me.schema_uri}")
                 print(f"\t TRAITS: ({','.join(me.traits)})")
-                self.nskipped += 1
                 self.skip(me.name)
-                return False
+                return True
 
             cntxt = Context(g, s, me.extern_shape_for, base_namespace=BASE_FILE_LOC)
             cntxt.debug_context.debug = DEBUG

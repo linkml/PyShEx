@@ -66,14 +66,23 @@ class PrefixLibrary:
 
     def add_rdf(self, rdf: str | Graph, format: str | None = "turtle") -> "PrefixLibrary":
         if not isinstance(rdf, Graph):
-            g = Graph()
+            # "core" keeps the pre-rdflib-6 binding set (rdf, rdfs, xsd, ...) rather
+            # than the ~30 namespaces rdflib now binds by default.  The json-ld
+            # parser re-binds the full default set mid-parse, so for that format
+            # anything beyond core that matches a default binding is dropped —
+            # at the cost of losing @context prefixes identical to a default.
+            g = Graph(bind_namespaces="core")
+            injectable = set(Graph().namespace_manager.namespaces()) - \
+                set(g.namespace_manager.namespaces()) if format and 'json-ld' in format else set()
             if '\n' in rdf or '\r' in rdf or ' ' in rdf:
                 g.parse(data=rdf, format=format)
             else:
                 g.parse(rdf, format=format)
+            namespaces = [(k, v) for k, v in g.namespace_manager.namespaces()
+                          if (k, v) not in injectable]
         else:
-            g = rdf
-        for k, v in g.namespace_manager.namespaces():
+            namespaces = list(rdf.namespace_manager.namespaces())
+        for k, v in namespaces:
             setattr(self, k.upper(), Namespace(v))
         return self
 

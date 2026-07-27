@@ -11,7 +11,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data')
 @pytest.fixture
 def graph() -> CFGraph:
     g = CFGraph()
-    g.open(os.path.join(BASE_DIR, 'validation', 'biolink-model.ttl'))
+    g.parse(os.path.join(BASE_DIR, 'validation', 'biolink-model.ttl'), format="turtle")
     return g
 
 
