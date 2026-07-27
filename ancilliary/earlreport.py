@@ -54,13 +54,19 @@ class EARLPage:
         self.g = Graph()
         self.g.parse(data=header, format="turtle")
         self.author = author
+        # one timestamp for the whole report and sequential bnode labels: the
+        # turtle serializer orders bnode stanzas by label, so this keeps the
+        # serialized assertions in manifest order instead of shuffling per run
+        self.issued = datetime.datetime.utcnow().isoformat()
+        self._sequence = 0
 
     def add(self, s: Node, p: URIRef, o: Node) -> "EARLPage":
         self.g.add((s, p, o))
         return self
 
     def add_test_result(self, test_entry: str, status: str) -> None:
-        entry = BNode()
+        entry = BNode(f"assertion{self._sequence:05d}")
+        self._sequence += 1
         self.add(entry, RDF.type, EARL.Assertion)\
             .add(entry, EARL.assertedBy, self.author)\
             .add(entry, EARL.test, MFST[test_entry])\
@@ -72,7 +78,7 @@ class EARLPage:
         rslt = BNode()
         self.add(rslt, RDF.type, EARL.TestResult)\
             .add(rslt, EARL.outcome, EARL[status])\
-            .add(rslt, DC.date, Literal(datetime.datetime.utcnow().isoformat()))\
+            .add(rslt, DC.date, Literal(self.issued))\
             .add(entry, EARL.result, rslt)
 
     def __str__(self) -> str:
