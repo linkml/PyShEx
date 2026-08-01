@@ -467,7 +467,7 @@ def matches(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr, extras: set[URI
         return matchesExpr(cntxt, T, expr)
     else:
         return matchesCardinality(cntxt, T, expr, extras) \
-               and (expr.semActs is None or semActsSatisfied(expr.semActs, cntxt))
+               and (expr.semActs is None or semActsSatisfied(expr.semActs, cntxt, T))
 
 
 @trace_matches(True)
