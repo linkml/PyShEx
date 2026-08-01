@@ -201,7 +201,11 @@ def _expression_matches(cntxt: Context, matchables: RDFGraph, S: ShExJ.Shape, c:
     if matches(cntxt, matchables, S.expression, extras):
         return True
     if len(extras):
-        permutable_matchables = RDFGraph([t for t in matchables if t.p in extras])
+        # valid_remainder: a triple that matches a TripleConstraint in the expression
+        # (any constraint, selected branch or not) may never be absorbed by EXTRA
+        tcs = triple_constraints_in_expression(S.expression, cntxt)
+        permutable_matchables = RDFGraph([t for t in matchables if t.p in extras and
+                                          not any(matchesTripleConstraint(cntxt, t, tc) for tc in tcs)])
         non_permutable_matchables = RDFGraph([t for t in matchables if t not in permutable_matchables])
         if c.debug:
             print(c.i(1, f"Complete match failed -- evaluating extras", list(extras)))
@@ -508,9 +512,12 @@ def matchesCardinality(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr | ShE
                 cntxt.fail_reason = f"   No matching triples found for predicate {cntxt.n3_mapper.n3(expr.predicate)}"
             return False
 
-        # Don't include extras in the cardinality check
+        # Don't include extras in the cardinality check.  valid_remainder: EXTRA may
+        # only absorb a triple that does NOT match the constraint -- a matching triple
+        # always counts against the cardinality.
         if extras:
-            must_match = RDFGraph([t for t in T if t.p not in extras])  # The set of things NOT consumed in extra
+            must_match = RDFGraph([t for t in T
+                                   if t.p not in extras or matchesTripleConstraint(cntxt, t, expr)])
         else:
             must_match = T
         if 0 <= max_ < len(must_match):
