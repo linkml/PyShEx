@@ -65,7 +65,7 @@ def satisfiesShape(cntxt: Context, n: Node, S: ShExJ.Shape, c: DebugContext) -> 
             print(c.i(1, "matchables:", sorted(cntxt.n3_mapper.n3(m) for m in matchables)))
             print()
 
-        if S.closed:
+        if S.closed or (restricted and _active_restriction_closed(cntxt, n)):
             # TODO: Is this working correctly on reverse items?
             restriction = _active_restriction(cntxt, n)
             base = restriction if restriction is not None else arcsOut(cntxt.graph, n)
@@ -108,10 +108,22 @@ def _active_restriction(cntxt: Context, n: Node) -> RDFGraph | None:
     """The set of triples an enclosing EXTENDS allocation dedicated to evaluations of
     node n, if any.  Scoped by focus node so that value expression evaluation of other
     nodes still sees the whole graph."""
-    for node, triples in reversed(_restriction_stack(cntxt)):
+    for node, triples, _closed in reversed(_restriction_stack(cntxt)):
         if node == n:
             return triples
     return None
+
+
+def _active_restriction_closed(cntxt: Context, n: Node) -> bool:
+    """Whether the enclosing EXTENDS allocation for node n was made under a CLOSED
+    shape.  Closedness is selection-local and inherited: every triple allocated under a
+    CLOSED extended shape must be consumed by the target it was allocated to, so e.g. a
+    triple matching only an unselected OR branch cannot hide there (cf. jena-shex's
+    selection-dependent matchables and rudof's selection-local CLOSED alphabet)."""
+    for node, _triples, closed in reversed(_restriction_stack(cntxt)):
+        if node == n:
+            return closed
+    return False
 
 
 def _collect_matchables(cntxt: Context, n: Node, S: ShExJ.Shape, predicates) -> RDFGraph:
@@ -267,7 +279,8 @@ def satisfiesExtendedShape(cntxt: Context, n: Node, S: ShExJ.Shape, c: DebugCont
                 merged.dir(False)
     matchables = _collect_matchables(cntxt, n, S, all_preds)
 
-    if S.closed:
+    effective_closed = bool(S.closed) or _active_restriction_closed(cntxt, n)
+    if effective_closed:
         restriction = _active_restriction(cntxt, n)
         base = restriction if restriction is not None else arcsOut(cntxt.graph, n)
         non_matchables = RDFGraph([t for t in base if t not in matchables])
@@ -333,7 +346,7 @@ def satisfiesExtendedShape(cntxt: Context, n: Node, S: ShExJ.Shape, c: DebugCont
         for i, se in enumerate(ext_exprs):
             key = (i, frozenset(parts[i]))
             if key not in ext_memo:
-                _restriction_stack(cntxt).append((n, parts[i]))
+                _restriction_stack(cntxt).append((n, parts[i], effective_closed))
                 try:
                     ext_memo[key] = satisfies(cntxt, n, se)
                 finally:
