@@ -5,7 +5,7 @@ from pyjsg.jsglib import isinstance_
 
 from pyshex.shape_expressions_language.p5_4_node_constraints import satisfiesNodeConstraint
 from pyshex.shape_expressions_language.p5_5_shapes_and_triple_expressions import satisfiesShape, \
-    _active_restriction
+    _active_restriction, suspended_inherited_closed
 from pyshex.shape_expressions_language.p5_context import Context, DebugContext
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import Node
 from pyshex.utils.trace_utils import trace_satisfies
@@ -158,13 +158,15 @@ def satisifesShapeOr(cntxt: Context, n: Node, se: ShExJ.ShapeOr, _: DebugContext
 @trace_satisfies()
 def satisfiesShapeAnd(cntxt: Context, n: Node, se: ShExJ.ShapeAnd, _: DebugContext) -> bool:
     """ Se is a ShapeAnd and for every shape expression se2 in shapeExprs, satisfies(n, se2, G, m) """
-    return all(satisfies(cntxt, n, se2) for se2 in se.shapeExprs)
+    with suspended_inherited_closed(cntxt, n):
+        return all(satisfies(cntxt, n, se2) for se2 in se.shapeExprs)
 
 
 @trace_satisfies()
 def satisfiesShapeNot(cntxt: Context, n: Node, se: ShExJ.ShapeNot, _: DebugContext) -> bool:
     """ Se is a ShapeNot and for the shape expression se2 at shapeExpr, notSatisfies(n, se2, G, m) """
-    return not satisfies(cntxt, n, se.shapeExpr)
+    with suspended_inherited_closed(cntxt, n):
+        return not satisfies(cntxt, n, se.shapeExpr)
 
 
 @trace_satisfies(True)

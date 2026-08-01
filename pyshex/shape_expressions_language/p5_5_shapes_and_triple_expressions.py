@@ -1,4 +1,6 @@
 """ Implementation of `5.5 Shapes and Triple Expressions <http://shex.io/shex-semantics/#shapes-and-TEs>`_"""
+from contextlib import contextmanager
+
 from ShExJSG import ShExJ
 from pyjsg.jsglib import isinstance_
 from rdflib import URIRef
@@ -124,6 +126,32 @@ def _active_restriction_closed(cntxt: Context, n: Node) -> bool:
         if node == n:
             return closed
     return False
+
+
+@contextmanager
+def suspended_inherited_closed(cntxt: Context, n: Node):
+    """Inherited closedness holds a shape expression responsible for consuming the whole
+    allocation -- which is right for an OR branch (the selection must account for every
+    allocated triple) but wrong below an AND or NOT: an AND distributes the allocation
+    among its conjuncts, so no single conjunct covers it, and a negated shape is a
+    filter over the allocation, never its consumer.  ShapeAnd/ShapeNot evaluation
+    therefore suspends the flag on the innermost allocation for n; the allocation's
+    coverage is already guaranteed by the allocator (a triple matching nothing is
+    rejected before parts are formed) and by any conjunct's own CLOSED."""
+    stack = _restriction_stack(cntxt)
+    for i in range(len(stack) - 1, -1, -1):
+        node, triples, closed = stack[i]
+        if node == n:
+            if closed:
+                stack[i] = (node, triples, False)
+                try:
+                    yield
+                finally:
+                    stack[i] = (node, triples, True)
+            else:
+                yield
+            return
+    yield
 
 
 def _collect_matchables(cntxt: Context, n: Node, S: ShExJ.Shape, predicates) -> RDFGraph:
