@@ -9,9 +9,11 @@ rdf_1 = gen_rdf("""
 <issue3> ex:submittedOn "2016-07-21"^^xsd:date .""")
 
 
+# pyshex turns off rdflib lexical normalization, so the "Z" zone designator survives
+# rather than being rewritten to "+00:00"
 rdf_out = """ns1:issue1 ns1:submittedOn "2016-07-08"^^xsd:date .
 
-ns1:issue2 ns1:submittedOn "2016-07-08T01:23:45+00:00"^^xsd:dateTime .
+ns1:issue2 ns1:submittedOn "2016-07-08T01:23:45Z"^^xsd:dateTime .
 
 ns1:issue3 ns1:submittedOn "2016-07-21"^^xsd:date ."""
 
