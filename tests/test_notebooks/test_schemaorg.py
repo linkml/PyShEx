@@ -15,7 +15,7 @@ BASE <http://schema.org/shex>
 <#SchemaText> LITERAL OR xsd:string 
 
 # assumes we have loaded the subClassOf type hierarchy:
-<#SubDataset> <#SubDatasetKnownClosure> OR { rdfs:subClassOf @<#SubDataset> }
+<#SubDataset> @<#SubDatasetKnownClosure> OR { rdfs:subClassOf @<#SubDataset> }
 
 # doesn't assume we have loaded the subClassOf type hierarchy:
 <#SubDatasetKnownClosure> [schema:Dataset schema:DataFeed]
@@ -27,7 +27,7 @@ BASE <http://schema.org/shex>
 # minimal Dataset shape: an identified type with a name and url
 <#BasicDatasetShape> EXTRA a
   {   
-    a <#SubDataset>;
+    a @<#SubDataset>;
     schema:name @<#SchemaText> +;
     schema:url @<#BasicUrlSh> +;
 

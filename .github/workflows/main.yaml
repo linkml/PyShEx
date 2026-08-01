@@ -4,7 +4,7 @@ env:
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
   workflow_dispatch:
 
@@ -47,6 +47,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          submodules: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -66,6 +67,8 @@ jobs:
       - name: Generate coverage results
         # Set bash shell to fail correctly on Windows https://github.com/actions/runner-images/issues/6668
         shell: bash
+        env:
+          SKIP_EXTERNAL_URLS: "true"
         run: |
           uv run coverage run -m pytest
           uv run coverage xml

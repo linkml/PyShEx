@@ -2,7 +2,7 @@ from typing import NamedTuple, Any
 
 import jsonasobj
 from jsonasobj import JsonObj
-from rdflib import URIRef, Literal
+from rdflib import BNode, URIRef, Literal
 from pyshex.utils.stringtoken import StringToken
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import Node
 
@@ -117,10 +117,15 @@ class ShapeAssociation(JsonObj):
     def __init__(self, nodeSelector: nodeSelector | str, shapeLabel: shapeLabel,
                  status: status=None, reason: reason=None,
                  appinfo: appinfo=None) -> None:
-        if not isinstance(nodeSelector, (Literal, URIRef)):
-            if '://' not in nodeSelector:
-                nodeSelector = 'file://' + nodeSelector
-            self.nodeSelector = URIRef(nodeSelector)
+        if not isinstance(nodeSelector, (Literal, URIRef, BNode)):
+            if nodeSelector.startswith('_:'):
+                # a told blank node, addressed by its label
+                nodeSelector = BNode(nodeSelector[2:])
+            else:
+                if '://' not in nodeSelector:
+                    nodeSelector = 'file://' + nodeSelector
+                nodeSelector = URIRef(nodeSelector)
+            self.nodeSelector = nodeSelector
         else:
             self.nodeSelector = nodeSelector
         self.shapeLabel = shapeLabel

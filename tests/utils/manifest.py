@@ -1,4 +1,6 @@
-from typing import List, Dict, Set, Union, Optional
+import json
+import json
+from typing import List, Dict, Set, Union, Optional, Tuple
 
 import os
 from ShExJSG import ShExJ
@@ -9,6 +11,24 @@ from rdflib.collection import Collection
 
 from pyshex.shape_expressions_language.p5_context import Context
 from pyshex.utils.schema_loader import SchemaLoader
+
+# The LexicalBNode / ToldBNode / BNodeShapeLabel tests address blank nodes in the data by
+# the labels used in the source document.  rdflib's turtle parser generates fresh ids for
+# labeled bnodes; patch the (test-local) parser to preserve them so the manifest's
+# sht:focus _:xyz can be correlated with the parsed data.
+from rdflib import BNode as _BNode
+from rdflib.plugins.parsers import notation3 as _notation3
+
+
+def _preserving_anonymous_node(self, ln):
+    term = self._anonymousNodes.get(ln, None)
+    if term is None:
+        term = _BNode(ln)
+        self._anonymousNodes[ln] = term
+    return term
+
+
+_notation3.SinkParser.anonymousNode = _preserving_anonymous_node
 from pyshex.utils.url_utils import generate_base
 from tests.utils.uri_redirector import URIRedirector
 
@@ -100,9 +120,31 @@ class ShExManifestEntry:
     def focus(self) -> Optional[URIRef]:
         return self._action_obj(SHT.focus)
 
+    @property
+    def map_uri(self) -> Optional[URIRef]:
+        return self._action_obj(SHT.map)
+
+    def shape_map(self) -> Optional[List[Tuple[str, str]]]:
+        """ (node, shape) pairs from the sht:map JSON file, if present """
+        if self.map_uri is None:
+            return None
+        uri = str(self.owner.data_uri(self.map_uri))
+        if '://' in uri and not uri.startswith('file://'):
+            import urllib.request
+            with urllib.request.urlopen(uri) as f:
+                entries = json.load(f)
+        else:
+            with open(uri.replace('file://', '')) as f:
+                entries = json.load(f)
+        return [(e['node'], e['shape']) for e in entries]
+
     def data_graph(self, fmt="turtle") -> Optional[Graph]:
         g = Graph()
-        base = generate_base(self.owner.data_uri(self.data_uri))
+        # parse against the canonical (remote) location so relative IRIs in the data
+        # land in the same IRI space as the schema's
+        base_uri = str(self.owner.data_uri(self.data_uri))
+        canonical = self.owner.schema_loader.canonical_location(base_uri.replace('file://', ''))
+        base = generate_base(canonical if canonical else base_uri)
         data_ttl = f"@base <{base}> .\n {self.data()}"
         g.parse(data=data_ttl, format=fmt)
         return g

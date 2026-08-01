@@ -301,7 +301,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -419,7 +419,7 @@ dev = [
 requires-dist = [
     { name = "cfgraph", specifier = ">=0.2.1" },
     { name = "chardet" },
-    { name = "pyshexc", specifier = ">=0.10.3" },
+    { name = "pyshexc", git = "https://github.com/ericprud/grammar-python-antlr-linkml.git?branch=extends-shaperef" },
     { name = "rdflib-shim" },
     { name = "requests", specifier = ">=2.22.0" },
     { name = "shexjsg", specifier = ">=0.9.0" },
@@ -436,8 +436,8 @@ dev = [
 
 [[package]]
 name = "pyshexc"
-version = "0.10.3.post1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.10.3.post1.dev2+7e3a6b5"
+source = { git = "https://github.com/ericprud/grammar-python-antlr-linkml.git?branch=extends-shaperef#7e3a6b56de0bb55cce00827273083ca4e4886a92" }
 dependencies = [
     { name = "antlr4-python3-runtime" },
     { name = "chardet" },
@@ -445,10 +445,6 @@ dependencies = [
     { name = "pyjsg" },
     { name = "rdflib-shim" },
     { name = "shexjsg" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/36/c5/81196cd2ab23953c4a8d39c7627437984bf8566eae896c5745356a7de7c8/pyshexc-0.10.3.post1.tar.gz", hash = "sha256:80d9d067c80af9a796e3c1c47d2207edf2e9a9fc39d3ca0ce5dd2019334ea915", size = 130019, upload-time = "2026-05-01T11:34:19.23Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5e/1d/d8d5be9e72e518b42f544e196de9c07161b0933143c9d0e4e2e33de60d79/pyshexc-0.10.3.post1-py3-none-any.whl", hash = "sha256:5d247f2822ef9864152545935d93a07dce66640608ea9414c96f69da7fe7a168", size = 71730, upload-time = "2026-05-01T11:34:17.836Z" },
 ]
 
 [[package]]

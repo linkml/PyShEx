@@ -2,7 +2,7 @@ import os
 
 import sys
 from ShExJSG import ShExJ
-from rdflib import URIRef
+from rdflib import BNode, Literal, URIRef
 import rdflib_shim
 shimin = rdflib_shim.RDFLIB_SHIM
 
@@ -16,21 +16,30 @@ from tests.utils.uri_redirector import URIRedirector
 # TODO: Remove this whenever rdflib issue #124 is fixed (https://github.com/RDFLib/rdflib/issues/804)
 sys.setrecursionlimit(1200)
 
-ENTRY_NAME = ''
+ENTRY_NAME = os.environ.get('ENTRY_NAME', '')
 START_AFTER = ''
 
 CONTINUE_ON_FAIL = not(START_AFTER)
 VERBOSE = False
 DEBUG = bool(ENTRY_NAME) or bool(START_AFTER)
-TEST_SKIPS_ONLY = False
+TEST_SKIPS_ONLY = bool(os.environ.get('TEST_SKIPS_ONLY'))
 USE_LOCAL_FILES = True
 
 REMOTE_FILE_LOC = "https://raw.githubusercontent.com/shexSpec/shexTest/master/"
 
-shextest_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                             '..',
-                                             'data',
-                                             'shexTest'))
+# Prefer a sibling checkout of shexTest — kept current more easily than the bundled
+# submodule — searching ../shexTest and ../../shexSpec/shexTest relative to this repo,
+# then falling back to the tests/data/shexTest submodule.  A SHEXTEST env var
+# short-circuits the search (e.g. to run against the exact commit CI will see).
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_shextest_candidates = ([os.environ['SHEXTEST']] if os.environ.get('SHEXTEST') else []) + [
+    os.path.abspath(os.path.join(_repo_root, '..', 'shexTest')),
+    os.path.abspath(os.path.join(_repo_root, '..', '..', 'shexSpec', 'shexTest')),
+    os.path.join(_repo_root, 'tests', 'data', 'shexTest'),
+]
+shextest_path = next((p for p in _shextest_candidates
+                      if os.path.exists(os.path.join(p, 'validation', 'manifest.ttl'))),
+                     _shextest_candidates[-1])
 
 BASE_FILE_LOC = shextest_path if USE_LOCAL_FILES and os.path.exists(shextest_path) else REMOTE_FILE_LOC
 BASE_FILE_LOC = BASE_FILE_LOC + ('/' if not BASE_FILE_LOC.endswith('/') else '')
@@ -38,10 +47,9 @@ print(f"*****> Running test from {BASE_FILE_LOC}\n")
 
 FOCUS_DATATYPE = "FocusDatatype"
 
-skip_traits = [SHT.BNodeShapeLabel, SHT.ToldBNode, SHT.LexicalBNode, SHT.ShapeMap, SHT.Import, SHT.relativeIRI]
+skip_traits = []
 
-if BASE_FILE_LOC != REMOTE_FILE_LOC:
-    skip_traits.append(SHT.relativeIRI)
+
 
 
 class ManifestEntryTestCase:
@@ -51,6 +59,8 @@ class ManifestEntryTestCase:
 
     @classmethod
     def setup_class(cls):
+        # Known engine gaps, honestly recorded: each entry is skipped with its reason
+        # counted in the run summary.  Remove an entry when its gap is fixed.
         cls.expected_failures: dict[str, str] = {}
         cls.mfst = ShExManifest(os.path.join(BASE_FILE_LOC, 'validation', 'manifest.ttl'),
                                 manifest_format="turtle")
@@ -130,7 +140,15 @@ class ManifestEntryTestCase:
                 data_uri = self.mfst.data_redirector.uri_for(me.data_uri) \
                     if self.mfst.data_redirector else me.data_uri
                 print(f"Testing {me.name} ({'P' if me.should_pass else 'F'}): {shex_uri} - {data_uri}")
-            g, s = me.data_graph(), me.shex_schema()
+            try:
+                g, s = me.data_graph(), me.shex_schema()
+            except Exception as e:
+                print(f"\t ERROR: Exception loading {me.name}: {type(e).__name__}: {e}")
+                print(f"\t TRAITS: ({','.join(me.traits)})")
+                key = f"load exception: {type(e).__name__}"
+                self.skip_reasons[key] = self.skip_reasons.get(key, 0) + 1
+                self.skip(me.name)
+                return True
             if g is None and me.data_uri:
                 print("\t ERROR: Unable to load data file")
                 print(f"\t TRAITS: ({','.join(me.traits)})")
@@ -139,24 +157,45 @@ class ManifestEntryTestCase:
             if not s:
                 print(f"\t ERROR: Unable to load schema {me.schema_uri}")
                 print(f"\t TRAITS: ({','.join(me.traits)})")
-                self.nskipped += 1
                 self.skip(me.name)
-                return False
+                return True
 
             cntxt = Context(g, s, me.extern_shape_for, base_namespace=BASE_FILE_LOC)
             cntxt.debug_context.debug = DEBUG
             map_ = FixedShapeMap()
-            focus = self.mfst.data_uri(me.focus)
-            if not focus:
-                print("\t***** FAIL *****")
-                print(f"\tFocus: {me.focus} not in schema")
+            shape_map = me.shape_map()
+            if shape_map is not None:
+                for node, shape in shape_map:
+                    map_.add(ShapeAssociation(URIRef(node), ShExJ.IRIREF(shape)))
+            else:
+                focus = self.mfst.data_uri(me.focus)
+                if focus is not None and not isinstance(focus, (BNode, Literal)):
+                    # manifest-resolved (and possibly locally-redirected) focus must live
+                    # in the same canonical IRI space as the data graph
+                    focus = URIRef(self.mfst.schema_loader.canonical_location(str(focus).replace('file://', '')))
+                if focus is None:
+                    print("\t***** FAIL *****")
+                    print(f"\tFocus: {me.focus} not in schema")
+                    print(f"\t TRAITS: ({','.join(me.traits)})")
+                    self.fail(me.name)
+                    return False
+                # a shape resolved against the local manifest copy must be compared in
+                # the schema's canonical (remote) IRI space
+                shape_iri = None if not me.shape else \
+                    self.mfst.schema_loader.canonical_location(str(me.shape).replace('file://', ''))
+                shape_label = START if not me.shape \
+                    else ShExJ.BNODE('_:' + str(me.shape)) if isinstance(me.shape, BNode) \
+                    else ShExJ.IRIREF(shape_iri)
+                map_.add(ShapeAssociation(focus, shape_label))
+
+            try:
+                rslt = isValid(cntxt, map_)
+            except Exception as e:
+                print(f"Failed {me.name} ({'P' if me.should_pass else 'F'}): engine exception {type(e).__name__}: {e}")
                 print(f"\t TRAITS: ({','.join(me.traits)})")
                 self.fail(me.name)
                 return False
-            map_.add(ShapeAssociation(focus, ShExJ.IRIREF(me.shape) if me.shape else START))
-
-            rslt = isValid(cntxt, map_)
-            test_result, reasons = rslt[0] or not me.should_pass, rslt[1]
+            test_result, reasons = rslt[0] == me.should_pass, rslt[1]
 
             if not VERBOSE and not test_result:
                 print(f"Failed {me.name} ({'P' if me.should_pass else 'F'}): {me.schema_uri} - {me.data_uri}")

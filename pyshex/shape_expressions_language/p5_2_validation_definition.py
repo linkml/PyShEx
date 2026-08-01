@@ -3,6 +3,7 @@ from pyjsg.jsglib import isinstance_
 
 from pyshex.parse_tree.parse_node import ParseNode
 from pyshex.shape_expressions_language.p5_3_shape_expressions import satisfies
+from pyshex.shape_expressions_language.p5_7_semantic_actions import semActsSatisfied
 from pyshex.shape_expressions_language.p5_context import Context
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import Node
 from pyshex.shapemap_structure_and_language.p3_shapemap_structure import FixedShapeMap, START, nodeSelector
@@ -21,6 +22,8 @@ def isValid(cntxt: Context, m: FixedShapeMap) -> tuple[bool, list[str]]:
     """
     if not cntxt.is_valid:
         return False, cntxt.error_list
+    if not semActsSatisfied(getattr(cntxt.schema, 'startActs', None), cntxt):
+        return False, ["Schema startActs semantic action failed"]
     parse_nodes = []
     for nodeshapepair in m:
         n = nodeshapepair.nodeSelector

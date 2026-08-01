@@ -10,7 +10,8 @@ from jsonasobj import as_json
 from pyshex.shape_expressions_language.p5_context import Context, DebugContext
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import Node
 from pyshex.sparql11_query.p17_1_operand_data_types import is_sparql_operand_datatype, is_numeric
-from pyshex.utils.datatype_utils import can_cast_to, total_digits, fraction_digits, pattern_match, map_object_literal
+from pyshex.utils.datatype_utils import can_cast_to, total_digits, fraction_digits, is_valid_lexical_form, \
+    pattern_match, map_object_literal
 from pyshex.utils.trace_utils import trace_satisfies
 from pyshex.utils.value_set_utils import objectValueMatches, uriref_startswith_iriref, uriref_matches_iriref
 
@@ -70,8 +71,16 @@ def nodeSatisfiesDataType(cntxt: Context, n: Node, nc: ShExJ.NodeConstraint, c: 
         cntxt.dump_bnode(n)
         return False
     actual_datatype = _datatype(n)
-    if actual_datatype == str(nc.datatype) or \
-        (is_sparql_operand_datatype(nc.datatype) and can_cast_to(n, nc.datatype)):
+    if actual_datatype == str(nc.datatype):
+        # "an XML schema string with a value of the lexical form of n can be cast to the
+        # target type" -- a matching datatype IRI is not enough if the lexical form is
+        # outside the datatype's lexical space (rdflib leaves such literals ill-typed
+        # but does not validate value ranges, so check both here)
+        if is_valid_lexical_form(n) is False:
+            cntxt.fail_reason = f"Invalid lexical form for {nc.datatype}: '{n}'"
+            return False
+        return True
+    if is_sparql_operand_datatype(nc.datatype) and can_cast_to(n, nc.datatype):
         return True
     cntxt.fail_reason = f"Datatype mismatch - expected: {nc.datatype} actual: {actual_datatype}"
     return False
@@ -256,16 +265,38 @@ def _nodeSatisfiesValue(cntxt: Context, n: Node, vsv: ShExJ.valueSetValue) -> bo
 
     if isinstance(vsv, ShExJ.LiteralStemRange):
         exclusions = vsv.exclusions if vsv.exclusions is not None else []
-        return nodeInLiteralStem(cntxt, n, vsv.stem) and not any(str(n) == excl for excl in exclusions)
+        return nodeInLiteralStem(cntxt, n, vsv.stem) and not any(
+            (isinstance(n, Literal) and str(n).startswith(str(excl.stem)))
+            if isinstance(excl, ShExJ.LiteralStem) else str(n) == str(excl)
+            for excl in exclusions)
 
     if isinstance(vsv, ShExJ.LanguageStem):
         return nodeInLanguageStem(cntxt, n, vsv.stem)
 
     if isinstance(vsv, ShExJ.LanguageStemRange):
         exclusions = vsv.exclusions if vsv.exclusions is not None else []
-        return nodeInLanguageStem(cntxt, n, vsv.stem) and not any(str(n) == str(excl) for excl in exclusions)
+        return nodeInLanguageStem(cntxt, n, vsv.stem) and not any(
+            _language_tag_matches_stem(_language_tag(n), str(excl.stem))
+            if isinstance(excl, ShExJ.LanguageStem) else
+            (_language_tag(n) is not None and _language_tag(n).lower() == str(excl).lower())
+            for excl in exclusions)
 
     return False
+
+
+def _language_tag(n: Node) -> str | None:
+    return n.language if isinstance(n, Literal) else None
+
+
+def _language_tag_matches_stem(tag: str | None, stem: str) -> bool:
+    """`RFC 4647 basic filtering <https://datatracker.ietf.org/doc/html/rfc4647#section-3.3.1>`_:
+    a language range matches a tag it equals (case-insensitively) or prefixes at a
+    subtag ('-') boundary; the empty range matches any language-tagged string."""
+    if tag is None:
+        return False
+    if stem == '':
+        return True
+    return tag.lower() == stem.lower() or tag.lower().startswith(stem.lower() + '-')
 
 
 def nodeInIriStem(_: Context, n: Node, s: ShExJ.IriStem) -> bool:
@@ -292,7 +323,7 @@ def nodeInLiteralStem(_: Context, n: Node, s: ShExJ.LiteralStem) -> bool:
          #) `n` is an :py:class:`rdflib.Literal` and fn:starts-with(`n`, `s`)
      """
     return isinstance(s, ShExJ.Wildcard) or \
-        (isinstance(n, Literal) and str(n.value).startswith(str(s)))
+        (isinstance(n, Literal) and str(n).startswith(str(s)))
 
 
 def nodeInLanguageStem(_: Context, n: Node, s: ShExJ.LanguageStem) -> bool:
@@ -303,10 +334,11 @@ def nodeInLanguageStem(_: Context, n: Node, s: ShExJ.LanguageStem) -> bool:
 
         The expression `nodeInLanguageStem(n, s)` is satisfied iff:
          #) `s` is a :py:class:`ShExJ.WildCard` or
-         #) `n` is a language-tagged string and fn:starts-with(`n.language`, `s`)
+         #) `n` is a language-tagged string whose tag matches `s` as a basic language
+            range (equality or a '-' subtag boundary -- "fr" matches "fr-BE" but not
+            "frc")
     """
-    return isinstance(s, ShExJ.Wildcard) or \
-        (isinstance(n, Literal) and n.language is not None and str(n.language).startswith(str(s)))
+    return isinstance(s, ShExJ.Wildcard) or _language_tag_matches_stem(_language_tag(n), str(s))
 
 
 def nodeInBnodeStem(_cntxt: Context, _n: Node, _s: str | ShExJ.Wildcard) -> bool:

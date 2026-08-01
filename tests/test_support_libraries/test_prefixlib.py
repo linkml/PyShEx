@@ -2,9 +2,11 @@ import os
 from contextlib import redirect_stdout
 from io import StringIO
 
+import pytest
 from rdflib import Graph, Namespace, URIRef
 
 from pyshex import PrefixLibrary, standard_prefixes, known_prefixes
+from tests import SKIP_EXTERNAL_URLS, SKIP_EXTERNAL_URLS_MSG
 
 from pyshex.utils import tortoise
 
@@ -14,10 +16,11 @@ tortoise.register()
 def test_basics():
     pl = PrefixLibrary()
     print(str(pl))
-    g = Graph()
+    g = Graph(bind_namespaces="core")
     pl.add_bindings_to(g)
 
-    assert g.serialize(format="tortoise").decode().strip() == """@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+    assert g.serialize(format="tortoise").strip() == """@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xml: <http://www.w3.org/XML/1998/namespace> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> ."""
@@ -118,7 +121,7 @@ gw:cancer {
     assert str(pl.EX) == "http://example.org/"
 
     known_prefixes.add_bindings_to(g)
-    assert g.serialize(format="tortoise").decode().strip() == """@prefix dc: <http://purl.org/dc/elements/1.1/> .
+    assert g.serialize(format="tortoise").strip() == """@prefix dc: <http://purl.org/dc/elements/1.1/> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -126,7 +129,6 @@ gw:cancer {
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-@prefix xml: <http://www.w3.org/XML/1998/namespace> .
 @prefix xmlns: <http://www.w3.org/XML/1998/namespace> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> ."""
 
@@ -239,10 +241,11 @@ def test_add_rdf_str():
 
 ex:Sam a foaf:Person."""
     pl.add_rdf(rdf)
-    assert str(pl).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+    assert str(pl).strip() == """PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX xml: <http://www.w3.org/XML/1998/namespace>
 PREFIX dc: <http://purl.org/dc/elements/1.1/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
@@ -253,37 +256,41 @@ PREFIX ex: <http://example.org/test/>"""
 def test_add_rdf_file():
     filename = os.path.join(os.path.dirname(__file__), '..', 'data', 'earl_report.ttl')
     pl = PrefixLibrary()
-    assert str(pl.add_rdf(filename)).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+    assert str(pl.add_rdf(filename)).strip() == """PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX dc: <http://purl.org/dc/terms/>
+PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+PREFIX dc: <http://purl.org/dc/elements/1.1/>
+PREFIX dc1: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
 PREFIX earl: <http://www.w3.org/ns/earl#>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX ns1: <http://purl.org/dc/elements/1.1/>"""
-    g = Graph()
-    g.load(filename, format="turtle")
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>"""
+    g = Graph(bind_namespaces="core")
+    g.parse(filename, format="turtle")
     pl = PrefixLibrary()
-    assert str(pl.add_rdf(g)).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+    assert str(pl.add_rdf(g)).strip() == """PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-PREFIX dc: <http://purl.org/dc/terms/>
+PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+PREFIX dc: <http://purl.org/dc/elements/1.1/>
+PREFIX dc1: <http://purl.org/dc/terms/>
 PREFIX doap: <http://usefulinc.com/ns/doap#>
 PREFIX earl: <http://www.w3.org/ns/earl#>
-PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-PREFIX ns1: <http://purl.org/dc/elements/1.1/>"""
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>"""
 
 
+@pytest.mark.skipif(SKIP_EXTERNAL_URLS, reason=SKIP_EXTERNAL_URLS_MSG)
 def test_add_rdf_url():
     pl = PrefixLibrary()
     pl.add_rdf("https://raw.githubusercontent.com/prefixcommons/biocontext/master/registry/go_context.jsonld",
                format="json-ld")
-    assert str(pl).strip() == """PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+    assert str(pl).strip() == """PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX xml: <http://www.w3.org/XML/1998/namespace>
 PREFIX wb: <http://identifiers.org/wormbase/>
 PREFIX kegg_ligand: <http://www.genome.jp/dbget-bin/www_bget?cpd:>
 PREFIX pso_git: <https://github.com/Planteome/plant-stress-ontology/issues/>

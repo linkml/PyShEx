@@ -28,13 +28,14 @@ def test_fraction_digits() -> None:
     assert fraction_digits(Literal(-117253884)) == 0
     assert fraction_digits(Literal(127, datatype=XSD.byte)) == 0
     assert fraction_digits(Literal("Hello")) is None
-    assert fraction_digits(Literal(117, datatype=XSD.float)) == 0
-    # Note: rdflib creates a type of XSD.double, which is NOT derived from decimal (!)
-    assert fraction_digits(Literal(5.0)) == 0
+    # totaldigits/fractiondigits apply only to xsd:decimal and its derivatives --
+    # constraints on float/double (what rdflib types a bare Python float as) must fail
+    assert fraction_digits(Literal(117, datatype=XSD.float)) is None
+    assert fraction_digits(Literal(5.0)) is None
     assert fraction_digits(Literal(5.0, datatype=XSD.decimal)) == 0
     assert fraction_digits(Literal(5.55, datatype=XSD.decimal)) == 2
     assert fraction_digits(Literal('5.55', datatype=XSD.decimal)) == 2
-    assert fraction_digits(Literal(-5.0)) == 0
+    assert fraction_digits(Literal(-5.0)) is None
     assert fraction_digits(Literal(-5.0, datatype=XSD.decimal)) == 0
     assert fraction_digits(Literal(-5.55, datatype=XSD.decimal)) == 2
     assert fraction_digits(Literal('-5.55', datatype=XSD.decimal)) == 2

@@ -52,7 +52,7 @@ class RDFGraph(set):
     def __str__(self) -> str:
         g = Graph()
         [g.add((e.s, e.p, e.o)) for e in self]
-        return re.sub(r'^@prefix.*', '', g.serialize(format="turtle").decode(), flags=re.MULTILINE).strip()
+        return re.sub(r'^@prefix.*', '', g.serialize(format="turtle"), flags=re.MULTILINE).strip()
 
     def add_triples(self, triples: Iterator[Triple]):
         super().update([RDFTriple(t) for t in triples])

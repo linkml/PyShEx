@@ -103,7 +103,7 @@ class ShExEvaluator:
 
         :return: The rendering of whatever RDF is currently being evaluated
         """
-        return self.g.serialize(format=self.rdf_format).decode()
+        return self.g.serialize(format=self.rdf_format)
 
     @rdf.setter
     def rdf(self, rdf: str | Graph | None) -> None:
