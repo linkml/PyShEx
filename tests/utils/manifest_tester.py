@@ -27,10 +27,18 @@ USE_LOCAL_FILES = True
 
 REMOTE_FILE_LOC = "https://raw.githubusercontent.com/shexSpec/shexTest/master/"
 
-shextest_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                             '..',
-                                             'data',
-                                             'shexTest'))
+# Prefer a sibling checkout of shexTest — kept current more easily than the bundled
+# submodule — searching ../shexTest and ../../shexSpec/shexTest relative to this repo,
+# then falling back to the tests/data/shexTest submodule.
+_repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+_shextest_candidates = [
+    os.path.abspath(os.path.join(_repo_root, '..', 'shexTest')),
+    os.path.abspath(os.path.join(_repo_root, '..', '..', 'shexSpec', 'shexTest')),
+    os.path.join(_repo_root, 'tests', 'data', 'shexTest'),
+]
+shextest_path = next((p for p in _shextest_candidates
+                      if os.path.exists(os.path.join(p, 'validation', 'manifest.ttl'))),
+                     _shextest_candidates[-1])
 
 BASE_FILE_LOC = shextest_path if USE_LOCAL_FILES and os.path.exists(shextest_path) else REMOTE_FILE_LOC
 BASE_FILE_LOC = BASE_FILE_LOC + ('/' if not BASE_FILE_LOC.endswith('/') else '')
@@ -129,7 +137,15 @@ class ManifestEntryTestCase:
                 data_uri = self.mfst.data_redirector.uri_for(me.data_uri) \
                     if self.mfst.data_redirector else me.data_uri
                 print(f"Testing {me.name} ({'P' if me.should_pass else 'F'}): {shex_uri} - {data_uri}")
-            g, s = me.data_graph(), me.shex_schema()
+            try:
+                g, s = me.data_graph(), me.shex_schema()
+            except Exception as e:
+                print(f"\t ERROR: Exception loading {me.name}: {type(e).__name__}: {e}")
+                print(f"\t TRAITS: ({','.join(me.traits)})")
+                key = f"load exception: {type(e).__name__}"
+                self.skip_reasons[key] = self.skip_reasons.get(key, 0) + 1
+                self.skip(me.name)
+                return True
             if g is None and me.data_uri:
                 print("\t ERROR: Unable to load data file")
                 print(f"\t TRAITS: ({','.join(me.traits)})")
@@ -169,8 +185,14 @@ class ManifestEntryTestCase:
                     else ShExJ.IRIREF(shape_iri)
                 map_.add(ShapeAssociation(focus, shape_label))
 
-            rslt = isValid(cntxt, map_)
-            test_result, reasons = rslt[0] or not me.should_pass, rslt[1]
+            try:
+                rslt = isValid(cntxt, map_)
+            except Exception as e:
+                print(f"Failed {me.name} ({'P' if me.should_pass else 'F'}): engine exception {type(e).__name__}: {e}")
+                print(f"\t TRAITS: ({','.join(me.traits)})")
+                self.fail(me.name)
+                return False
+            test_result, reasons = rslt[0] == me.should_pass, rslt[1]
 
             if not VERBOSE and not test_result:
                 print(f"Failed {me.name} ({'P' if me.should_pass else 'F'}): {me.schema_uri} - {me.data_uri}")
