@@ -61,24 +61,7 @@ class ManifestEntryTestCase:
     def setup_class(cls):
         # Known engine gaps, honestly recorded: each entry is skipped with its reason
         # counted in the run summary.  Remove an entry when its gap is fixed.
-        cls.expected_failures: dict[str, str] = {
-            # The abort/fatal semantics of the ShExtension test protocol are not
-            # implemented: a failing semantic action does not abort evaluation.
-            '1dotCode3fail_abort': 'semAct abort unimplemented',
-            'startCode1fail_abort': 'semAct abort unimplemented',
-            'startCode1startReffail_abort': 'semAct abort unimplemented',
-            'startCode3fail_abort': 'semAct abort unimplemented',
-            # The EXTRA retry loop lets absorbed triples hide even when they match the
-            # expression -- valid_remainder's "no absorbed triple matches a
-            # TripleConstraint" rule is not enforced there.
-            '1dotExtra1_fail-iri2': 'EXTRA absorbs expression-matching triples',
-            '1val2IRIREFExtra1_fail-iri2': 'EXTRA absorbs expression-matching triples',
-            # rdflib's Turtle tokenizer round-trips bare numerics through int(), so the
-            # non-canonical lexical form ("00") is destroyed before validation can
-            # reject it (quoted "00"^^xsd:integer forms are caught).
-            '1val1INTEGER_00': 'rdflib normalizes bare numeric lexical forms',
-            '1val1DECIMAL_00': 'rdflib normalizes bare numeric lexical forms',
-        }
+        cls.expected_failures: dict[str, str] = {}
         cls.mfst = ShExManifest(os.path.join(BASE_FILE_LOC, 'validation', 'manifest.ttl'),
                                 manifest_format="turtle")
         if BASE_FILE_LOC != REMOTE_FILE_LOC:
