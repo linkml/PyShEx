@@ -1,14 +1,15 @@
 """
 Implementation of `5.7 Semantic Actions <http://shex.io/shex-semantics/#semantic-actions>`_
 
-The evaluation of an individual SemAct is implementation-dependent; the only extension
-implemented here is the `Test extension <http://shex.io/extensions/Test/>`_ used by the
-shexTest suite: ``print(arg)`` succeeds and ``fail(arg)`` fails, each recording its
+The evaluation of an individual SemAct is implementation-dependent.  Extensions are looked
+up by their IRI in a registry (see :func:`register_extension`); actions of unregistered
+extensions succeed silently.  Built in is the `Test extension <http://shex.io/extensions/Test/>`_
+used by the shexTest suite: ``print(arg)`` succeeds and ``fail(arg)`` fails, each recording its
 argument -- a double-quoted string literal or one of s/p/o naming a component of the
-triples being matched -- on ``cntxt.semact_prints``.  Actions of unknown extensions
-succeed silently, as before.
+triples being matched -- on ``cntxt.semact_prints``.
 """
 import re
+from collections.abc import Callable
 
 from ShExJSG import ShExJ
 
@@ -32,9 +33,31 @@ def semActsSatisfied(acts: list[ShExJ.SemAct] | None, cntxt: Context, T=None) ->
     return all(_semActSatisfied(act, cntxt, T) for act in acts or [])
 
 
+SemActHandler = Callable[[ShExJ.SemAct, Context, object], bool]
+"""An extension handler: given the action, the evaluation context and the triples being
+matched (None for start actions), return whether the action succeeds.  A handler that
+fails may set ``cntxt.fail_reason``."""
+
+_EXTENSIONS: dict[str, SemActHandler] = {}
+
+
+def register_extension(iri: str, handler: SemActHandler) -> None:
+    """Evaluate semantic actions named ``iri`` with ``handler``.  Registering the same
+    IRI again replaces the previous handler."""
+    _EXTENSIONS[str(iri)] = handler
+
+
+def unregister_extension(iri: str) -> None:
+    """Stop evaluating semantic actions named ``iri``; they succeed silently again."""
+    _EXTENSIONS.pop(str(iri), None)
+
+
 def _semActSatisfied(act: ShExJ.SemAct, cntxt: Context, T) -> bool:
-    if str(act.name) != TEST_EXTENSION:
-        return True
+    handler = _EXTENSIONS.get(str(act.name))
+    return True if handler is None else handler(act, cntxt, T)
+
+
+def _test_extension(act: ShExJ.SemAct, cntxt: Context, T) -> bool:
     parsed = _TEST_CODE.match(str(act.code)) if act.code is not None else None
     if parsed is None:
         return True
@@ -58,3 +81,6 @@ def recorded_prints(cntxt: Context) -> list[str]:
     if not hasattr(cntxt, 'semact_prints'):
         cntxt.semact_prints = []
     return cntxt.semact_prints
+
+
+register_extension(TEST_EXTENSION, _test_extension)

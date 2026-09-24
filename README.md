@@ -106,6 +106,67 @@ optional arguments:
   -pb, --persistbnodes  Treat BNodes as persistent in SPARQL endpoint
 ```
 
+## ShExMap
+
+`pyshex.shexmap` maps RDF from one ShEx schema to another, after shex.js's
+[`@shexjs/extension-map`](https://github.com/shexjs/shex.js/tree/main/packages/extension-map).
+Semantic actions in the `http://shex.io/extensions/Map/#` extension name variables:
+in the input schema they bind what a triple constraint matched, and in the output
+schema they say where each value goes.
+
+Input schema (FHIR-style):
+
+```shex
+PREFIX fhir: <http://hl7.org/fhir-rdf/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX bp: <http://shex.io/extensions/Map/#BPDAM->
+PREFIX Map: <http://shex.io/extensions/Map/#>
+
+<Patient> {
+  fhir:givenName xsd:string %Map:{ bp:given %};
+  fhir:familyName xsd:string %Map:{ bp:family %}
+}
+```
+
+Output schema:
+
+```shex
+PREFIX : <http://dam.example/med#>
+PREFIX bp: <http://shex.io/extensions/Map/#BPDAM->
+PREFIX Map: <http://shex.io/extensions/Map/#>
+
+start = @<PatientDAM>
+<PatientDAM> {
+  :name . %Map:{ regex(/(?<bp:family>[a-zA-Z]+), (?<bp:given>[a-zA-Z]+)/) %}
+}
+```
+
+A patient with given name "Alice" and family name "Walker" becomes `:name "Walker, Alice"`.
+
+```python
+from pyshex.shexmap import bind, materialize
+
+bindings = bind(input_graph, input_shexc, "tag:alice", start="Patient")  # validates, then binds
+output_graph = materialize(output_shexc, bindings, "tag:p1")
+```
+
+`regex(/.../)` and `hashmap(var, {...})` compute bindings from a value and back again.
+Repeated matches keep their values together, so a patient with several blood-pressure
+readings becomes several output observations.  Bindings serialize to the same JSON as
+shex.js (`dumps`/`loads`), so either tool can materialize the other's bindings.
+
+From a terminal:
+
+```shell
+shexmap -i data.ttl -s input.shex -f '<tag:BPfhir123>' -t output.shex -r '<tag:b0>'
+shexmap -i data.ttl -s input.shex -f '<tag:BPfhir123>' -b bindings.json   # bindings only
+shexmap -j bindings.json -t output.shex -r '<tag:b0>'                     # materialize saved bindings
+```
+
+Bindings are collected after validation by assigning each triple to the first triple
+constraint it satisfies, which matches validation for schemas whose constraints differ by
+predicate or value; `EXTENDS` is not followed.
+
 ## Documentation
 See: [examples](notebooks) Jupyter notebooks for sample uses
 

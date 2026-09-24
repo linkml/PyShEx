@@ -46,6 +46,7 @@ dependencies = [
 
 [project.scripts]
 shexeval = "pyshex.shex_evaluator:evaluate_cli"
+shexmap = "pyshex.shexmap.cli:main"
 
 [tool.uv-dynamic-versioning]
 vcs = "git"
