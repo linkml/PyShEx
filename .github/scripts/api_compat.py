@@ -39,6 +39,30 @@ def allows_breaking(old: str, new: str) -> bool:
     return new_major > old_major or (new_major == old_major == 0 and new_minor > old_minor)
 
 
+# "Attribute value was changed" compares the right-hand side of assignments, including
+# instance attributes set in __init__ (e.g. `self.x = URIRef(x)` -> `self.x = x`).
+# It reports refactorings, not interface changes, so it is not treated as breaking.
+IGNORED_KINDS = {"ATTRIBUTE_CHANGED_VALUE"}
+
+
+def find_breakages(against: str) -> list:
+    import griffe
+
+    old = griffe.load_git("pyshex", ref=against, repo=".")
+    new = griffe.load("pyshex", search_paths=["."])
+    style = griffe.ExplanationStyle.GITHUB if os.environ.get("GITHUB_ACTIONS") else griffe.ExplanationStyle.ONE_LINE
+    breakages, ignored = [], 0
+    for breakage in griffe.find_breaking_changes(old, new):
+        if breakage.kind.name in IGNORED_KINDS:
+            ignored += 1
+            continue
+        breakages.append(breakage)
+        print(breakage.explain(style=style))
+    if ignored:
+        print(f"({ignored} attribute-value change(s) ignored)")
+    return breakages
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--new-version", help="version being released, e.g. the release tag v0.10.0")
@@ -50,10 +74,9 @@ def main() -> int:
         print("No previous release tag found; nothing to compare against.")
         return 0
 
-    fmt = "github" if os.environ.get("GITHUB_ACTIONS") else "oneline"
-    cmd = [sys.executable, "-m", "griffe", "check", "pyshex", "--search", ".", "--against", against, "--format", fmt]
     print(f"Comparing the pyshex API with {against}", flush=True)
-    if subprocess.run(cmd).returncode == 0:
+    breakages = find_breakages(against)
+    if not breakages:
         print("No breaking API changes.")
         return 0
 

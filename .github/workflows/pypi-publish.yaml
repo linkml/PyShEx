@@ -63,6 +63,12 @@ jobs:
     - name: Check package metadata
       run: uvx twine check --strict dist/*
 
+    - name: Dependency policy, with no exceptions for non-PyPI sources
+      # Published wheels resolve every dependency from PyPI, whatever [tool.uv.sources] says
+      env:
+        PYSHEX_RELEASE_CHECK: "1"
+      run: uv run --group dev pytest -p no:cacheprovider tests/test_policy
+
     - name: No breaking API change unless this is a breaking-change release
       run: uv run --no-project --with 'griffe>=2,<3' python .github/scripts/api_compat.py --new-version "${{ github.event.release.tag_name }}"
 

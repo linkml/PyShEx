@@ -6,6 +6,7 @@ platform or Python version the lockfile covers, until someone reviews and edits 
 allowlist below.
 """
 import ast
+import os
 import re
 from importlib import metadata
 
@@ -46,7 +47,14 @@ ALLOWED_RUNTIME_PACKAGES = {
 IMPORTED_BUT_UNDECLARED = {"rdflib", "pyjsg", "jsonasobj"}
 
 # Distributions declared in pyproject.toml that pyshex never imports.
-DECLARED_BUT_NOT_IMPORTED = {"chardet", "urllib3"}
+DECLARED_BUT_NOT_IMPORTED = {"urllib3"}
+
+# Runtime packages temporarily locked from somewhere other than PyPI, with why.
+# Tolerated on pull requests; the release workflow sets PYSHEX_RELEASE_CHECK=1, which
+# refuses all of them, because a published wheel always resolves these from PyPI.
+ALLOWED_NON_PYPI_SOURCES = {
+    "pyshexc": "EXTENDS grammar (PR #105) from a fork; release it to PyPI and drop [tool.uv.sources]",
+}
 
 UPPER_BOUND_OPERATORS = {"<", "<=", "==", "===", "~="}
 
@@ -92,10 +100,16 @@ def test_runtime_packages_come_from_pypi():
         for name in sorted(locked_runtime_closure())
         if "registry" not in packages[name].get("source", {})
     }
-    assert not off_registry, (
-        f"Runtime dependencies not locked from PyPI: {off_registry}. Release the needed version to PyPI "
-        "and depend on it instead."
+    releasing = os.environ.get("PYSHEX_RELEASE_CHECK") == "1"
+    allowed = set() if releasing else {canonicalize_name(n) for n in ALLOWED_NON_PYPI_SOURCES}
+    unexpected = {name: src for name, src in off_registry.items() if name not in allowed}
+    assert not unexpected, (
+        f"Runtime dependencies not locked from PyPI: {unexpected}. "
+        + ("A release must not ship these: " + "; ".join(ALLOWED_NON_PYPI_SOURCES.get(n, "") for n in unexpected)
+           if releasing else "Release the needed version to PyPI and depend on it instead.")
     )
+    stale = {canonicalize_name(n) for n in ALLOWED_NON_PYPI_SOURCES} - set(off_registry)
+    assert not stale, f"{sorted(stale)} now come from PyPI; remove them from ALLOWED_NON_PYPI_SOURCES"
 
 
 def test_no_extras_pull_in_hidden_dependencies():

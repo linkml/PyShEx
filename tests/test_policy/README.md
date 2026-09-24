@@ -12,3 +12,8 @@ the CI `policy` job run them on a current Python.
 
 Adding a dependency, or accepting a new transitive one, is allowed. It just has to be
 a deliberate, reviewed edit to the allowlist in `test_dependencies.py`.
+
+A runtime dependency may temporarily come from a git or path source (`[tool.uv.sources]`)
+if it is listed in `ALLOWED_NON_PYPI_SOURCES`. The release workflow runs these tests with
+`PYSHEX_RELEASE_CHECK=1`, which allows none, because published wheels always resolve
+dependencies from PyPI.
