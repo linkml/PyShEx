@@ -146,7 +146,6 @@ jobs:
     needs:
       - quality-checks
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v6
         with:
@@ -155,6 +154,8 @@ jobs:
         # Latest uv: older releases do not know about new CPython pre-releases
         uses: astral-sh/setup-uv@v7
       - name: Test on the next Python
+        id: next
+        continue-on-error: true
         run: |
           uv python install 3.15
           uv venv -p 3.15 "$RUNNER_TEMP/next"
@@ -162,3 +163,6 @@ jobs:
           cp -r tests/test_contract "$RUNNER_TEMP/test_contract"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/next/bin/python" -m pytest -p no:cacheprovider test_contract
+      - name: Report next-Python failure as a warning
+        if: steps.next.outcome == 'failure'
+        run: echo "::warning title=Next Python::PyShEx tests fail on the upcoming Python release; see the 'Test on the next Python' step"
