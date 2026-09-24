@@ -6,6 +6,10 @@ on:
     branches:
       - master
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  schedule:
+    # Weekly, to catch breakage from new upstream releases and new Python versions
+    - cron: "17 5 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -25,6 +29,30 @@ jobs:
         run: python -m pip install tox
       - name: Run codespell
         run: tox -e codespell
+
+  policy:
+    # LinkML's constraints: backward-compatible API, current Python support, no unexpected heavy dependencies.
+    # Runs the same hooks as pre-commit, so a local commit that passes will pass here.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          python-version: "3.13"
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Pre-commit hooks (lockfile, contract and policy tests)
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+      - name: API compatibility with the previous release
+        env:
+          ALLOW_BREAKING: ${{ contains(github.event.pull_request.labels.*.name, 'breaking-change') && '1' || '0' }}
+        run: uv run --no-project --with 'griffe>=2,<3' python .github/scripts/api_compat.py
 
   test:
     needs:
@@ -81,3 +109,56 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           fail_ci_if_error: false
+
+  downstream:
+    # Install this PyShEx with the latest releases of its known PyPI clients in ONE resolution
+    # (proves our pins stay compatible with theirs), then run the clients against it.
+    needs:
+      - quality-checks
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # tags give the real version; linkml needs pyshex >= 0.9.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python-version }}
+      - name: Install PyShEx with linkml and jupyter-rdfify
+        run: |
+          uv venv "$RUNNER_TEMP/downstream"
+          uv pip install --python "$RUNNER_TEMP/downstream" . linkml jupyter-rdfify pytest
+          uv pip list --python "$RUNNER_TEMP/downstream" | grep -Ei '^(pyshex|linkml|jupyter-rdfify|rdflib) '
+      - name: Run contract tests against the installed packages
+        # Copy the tests out of the checkout so they import the installed pyshex, not the source tree
+        run: |
+          cp -r tests/test_contract "$RUNNER_TEMP/test_contract"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/downstream/bin/python" -m pytest -p no:cacheprovider -rs test_contract
+
+  python-next:
+    # Early warning for the next CPython release (pre-releases). Does not block merging.
+    needs:
+      - quality-checks
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # tags give the real version; linkml needs pyshex >= 0.9.0
+      - name: Install uv
+        # Latest uv: older releases do not know about new CPython pre-releases
+        uses: astral-sh/setup-uv@v7
+      - name: Test on the next Python
+        run: |
+          uv python install 3.15
+          uv venv -p 3.15 "$RUNNER_TEMP/next"
+          uv pip install --python "$RUNNER_TEMP/next" . pytest
+          cp -r tests/test_contract "$RUNNER_TEMP/test_contract"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/next/bin/python" -m pytest -p no:cacheprovider test_contract

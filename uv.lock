@@ -412,6 +412,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "packaging" },
     { name = "pytest" },
 ]
 
@@ -431,6 +432,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage" },
+    { name = "packaging" },
     { name = "pytest" },
 ]
 

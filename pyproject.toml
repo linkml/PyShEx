@@ -62,6 +62,7 @@ packages = ["pyshex"]
 dev = [
     "pytest",
     "coverage",
+    "packaging",
 ]
 
 [tool.pytest.ini_options]
@@ -83,7 +84,7 @@ skip = [
 
 [tool.tox]
 requires = ["tox>=4"]
-env_list = ["lint", "py{310,311,312,313}"]
+env_list = ["lint", "py{310,311,312,313,314}"]
 
 [tool.tox.env_run_base]
 allowlist_externals = ["uv"]

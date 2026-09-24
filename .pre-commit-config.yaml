@@ -1,0 +1,42 @@
+# Maintenance guardrails for PyShEx. Install once with:
+#   uvx pre-commit install
+# This installs both the pre-commit and pre-push hooks listed below.
+# Run the hooks on demand with:
+#   uvx pre-commit run --all-files                         # commit-time hooks
+#   uvx pre-commit run --all-files --hook-stage pre-push   # API diff against the last release
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  - repo: local
+    hooks:
+      - id: uv-lock-check
+        name: uv.lock matches pyproject.toml
+        entry: uv lock --check
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: contract-and-policy-tests
+        name: API contract, client and dependency/Python policy tests
+        entry: uv run --frozen pytest -q -p no:cacheprovider tests/test_contract tests/test_policy
+        language: system
+        files: ^(pyshex/|pyproject\.toml$|uv\.lock$|tests/test_contract/|tests/test_policy/|\.github/workflows/)
+        pass_filenames: false
+
+      - id: api-compat
+        name: no breaking API changes since the last release (griffe)
+        entry: uv run --no-project --with griffe>=2,<3 python .github/scripts/api_compat.py
+        language: system
+        files: ^pyshex/
+        pass_filenames: false
+        stages: [pre-push]

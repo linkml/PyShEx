@@ -34,9 +34,52 @@ jobs:
         path: dist/
 
 
+  verify:
+    # Refuse to publish a release that would break existing users (see tests/test_contract/README.md)
+    name: Verify distributions 🔍
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.14"]
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Download dist
+      uses: actions/download-artifact@v7
+      with:
+        name: dist
+        path: dist/
+
+    - name: Check package metadata
+      run: uvx twine check --strict dist/*
+
+    - name: No breaking API change unless this is a breaking-change release
+      run: uv run --no-project --with 'griffe>=2,<3' python .github/scripts/api_compat.py --new-version "${{ github.event.release.tag_name }}"
+
+    - name: Contract tests against the built wheel
+      # Run from outside the checkout so the tests import the installed wheel
+      run: |
+        uv venv "$RUNNER_TEMP/verify"
+        uv pip install --python "$RUNNER_TEMP/verify" dist/*.whl pytest
+        cp -r tests/test_contract "$RUNNER_TEMP/test_contract"
+        cd "$RUNNER_TEMP"
+        "$RUNNER_TEMP/verify/bin/shexeval" --help > /dev/null
+        "$RUNNER_TEMP/verify/bin/python" -m pytest -p no:cacheprovider test_contract
+
+
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: build
+    needs: verify
     if: github.event.release.prerelease == true
     runs-on: ubuntu-latest
 
@@ -60,7 +103,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: build
+    needs: verify
     if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
 
