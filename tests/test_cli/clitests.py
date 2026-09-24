@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import sys
 import textwrap
 from argparse import ArgumentParser
@@ -61,7 +62,9 @@ class CLITestCase:
         """
         testfile_path = os.path.join(self.testdir_path, testfile)
         if text_filter is None:
-            text_filter = lambda txt: "".join(txt.replace('\r\n', '\n').strip().split())
+            # anonymous shapes surface as rdflib bnode labels, fresh on every parse
+            text_filter = lambda txt: "".join(
+                re.sub(r'N[0-9a-f]{32}', 'N#', txt).replace('\r\n', '\n').strip().split())
 
         outf = StringIO()
         arg_list = args.split() if isinstance(args, str) else args

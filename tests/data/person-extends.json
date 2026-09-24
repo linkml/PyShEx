@@ -1,0 +1,317 @@
+{
+  "type": "Schema",
+  "shapes": [
+    {
+      "id": "http://schema.example/Item",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "Shape",
+        "expression": {
+          "type": "EachOf",
+          "expressions": [
+            {
+              "type": "TripleConstraint",
+              "predicate": "http://a.example/ns#id",
+              "valueExpr": {
+                "type": "NodeConstraint",
+                "nodeKind": "iri"
+              }
+            },
+            {
+              "type": "TripleConstraint",
+              "predicate": "http://a.example/ns#rolls",
+              "valueExpr": "http://schema.example/RoleCode",
+              "min": 1,
+              "max": -1
+            }
+          ]
+        },
+        "closed": true
+      }
+    },
+    {
+      "id": "http://schema.example/RoleCode",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "NodeConstraint",
+        "values": [
+          "http://a.example/ns#Manager",
+          "http://a.example/ns#Engineer",
+          "http://a.example/ns#Laboror",
+          "http://a.example/ns#Human",
+          "http://a.example/ns#Robot"
+        ]
+      }
+    },
+    {
+      "id": "http://schema.example/Contact",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "ShapeAnd",
+        "shapeExprs": [
+          {
+            "type": "ShapeOr",
+            "shapeExprs": [
+              {
+                "type": "Shape",
+                "expression": {
+                  "type": "EachOf",
+                  "expressions": [
+                    {
+                      "type": "TripleConstraint",
+                      "predicate": "http://xmlns.com/foaf/0.1/name"
+                    },
+                    {
+                      "type": "TripleConstraint",
+                      "predicate": "http://xmlns.com/foaf/0.1/mbox",
+                      "valueExpr": {
+                        "type": "NodeConstraint",
+                        "nodeKind": "iri"
+                      }
+                    }
+                  ]
+                },
+                "extends": [
+                  "http://schema.example/Item"
+                ],
+                "closed": true
+              },
+              {
+                "type": "Shape",
+                "expression": {
+                  "type": "EachOf",
+                  "expressions": [
+                    {
+                      "type": "TripleConstraint",
+                      "predicate": "http://schema.org/name"
+                    },
+                    {
+                      "type": "TripleConstraint",
+                      "predicate": "http://schema.org/mbox",
+                      "valueExpr": {
+                        "type": "NodeConstraint",
+                        "nodeKind": "iri"
+                      }
+                    }
+                  ]
+                },
+                "extends": [
+                  "http://schema.example/Item"
+                ],
+                "closed": true
+              }
+            ]
+          },
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "TripleConstraint",
+              "predicate": "http://a.example/ns#rolls",
+              "valueExpr": {
+                "type": "NodeConstraint",
+                "values": [
+                  "http://a.example/ns#Human"
+                ]
+              }
+            },
+            "extra": [
+              "http://a.example/ns#rolls"
+            ]
+          },
+          {
+            "type": "ShapeNot",
+            "shapeExpr": {
+              "type": "Shape",
+              "expression": {
+                "type": "TripleConstraint",
+                "predicate": "http://a.example/ns#rolls",
+                "valueExpr": {
+                  "type": "NodeConstraint",
+                  "values": [
+                    "http://a.example/ns#Robot"
+                  ]
+                }
+              },
+              "extra": [
+                "http://a.example/ns#rolls"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "http://schema.example/Contact1",
+      "type": "ShapeDecl",
+      "shapeExpr": "http://schema.example/Contact"
+    },
+    {
+      "id": "http://schema.example/TBoss",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "ShapeAnd",
+        "shapeExprs": [
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "EachOf",
+              "expressions": [
+                {
+                  "type": "TripleConstraint",
+                  "predicate": "http://a.example/ns#sunglassesBrand"
+                },
+                {
+                  "type": "TripleConstraint",
+                  "predicate": "http://a.example/ns#tieMaterial"
+                }
+              ]
+            },
+            "extends": [
+              "http://schema.example/Item"
+            ],
+            "closed": true
+          },
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "TripleConstraint",
+              "predicate": "http://a.example/ns#rolls",
+              "valueExpr": {
+                "type": "NodeConstraint",
+                "values": [
+                  "http://a.example/ns#Manager"
+                ]
+              }
+            },
+            "extra": [
+              "http://a.example/ns#rolls"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "http://schema.example/TGeek",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "ShapeAnd",
+        "shapeExprs": [
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "EachOf",
+              "expressions": [
+                {
+                  "type": "TripleConstraint",
+                  "predicate": "http://a.example/ns#SlideRoolLength"
+                },
+                {
+                  "type": "TripleConstraint",
+                  "predicate": "http://a.example/ns#PocketProtectorMaterial"
+                }
+              ]
+            },
+            "extends": [
+              "http://schema.example/Item"
+            ],
+            "closed": true
+          },
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "TripleConstraint",
+              "predicate": "http://a.example/ns#rolls",
+              "valueExpr": {
+                "type": "NodeConstraint",
+                "values": [
+                  "http://a.example/ns#Engineer"
+                ]
+              }
+            },
+            "extra": [
+              "http://a.example/ns#rolls"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "http://schema.example/TLabor",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "ShapeAnd",
+        "shapeExprs": [
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "EachOf",
+              "expressions": [
+                {
+                  "type": "TripleConstraint",
+                  "predicate": "http://a.example/ns#glovesSize"
+                },
+                {
+                  "type": "TripleConstraint",
+                  "predicate": "http://a.example/ns#bootSize"
+                }
+              ]
+            },
+            "extends": [
+              "http://schema.example/Item"
+            ],
+            "closed": true
+          },
+          {
+            "type": "Shape",
+            "expression": {
+              "type": "TripleConstraint",
+              "predicate": "http://a.example/ns#rolls",
+              "valueExpr": {
+                "type": "NodeConstraint",
+                "values": [
+                  "http://a.example/ns#Laboror"
+                ]
+              }
+            },
+            "extra": [
+              "http://a.example/ns#rolls"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "http://schema.example/Tools",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "ShapeOr",
+        "shapeExprs": [
+          "http://schema.example/TBoss",
+          "http://schema.example/TGeek",
+          "http://schema.example/TLabor"
+        ]
+      }
+    },
+    {
+      "id": "http://schema.example/Person",
+      "type": "ShapeDecl",
+      "shapeExpr": {
+        "type": "Shape",
+        "expression": {
+          "type": "TripleConstraint",
+          "predicate": "http://a.example/ns#badgeNumber",
+          "valueExpr": {
+            "type": "NodeConstraint",
+            "datatype": "http://www.w3.org/2001/XMLSchema#integer"
+          }
+        },
+        "extends": [
+          "http://schema.example/Contact1",
+          "http://schema.example/Tools"
+        ],
+        "closed": true
+      }
+    }
+  ],
+  "@context": "http://www.w3.org/ns/shex.jsonld"
+}

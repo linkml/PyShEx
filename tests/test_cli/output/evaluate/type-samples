@@ -1,4 +1,30 @@
 Errors:
+  Focus: http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b
+  Start: http://w3id.org/biolink/vocab/GeneToGeneProductRelationship
+  Reason:   Testing <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> against shape Na9ce8f15a3214858924172f1e93f56eb
+    Triples:
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:GeneToGeneProductRelationship .
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:SequenceFeatureRelationship .
+   2 triples exceeds max {0,1}
+  Testing <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> against shape Na9ce8f15a3214858924172f1e93f56eb
+    Triples:
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:GeneToGeneProductRelationship .
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:SequenceFeatureRelationship .
+   2 triples exceeds max {0,1}
+
+  Focus: http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b
+  Start: http://w3id.org/biolink/vocab/SequenceFeatureRelationship
+  Reason:   Testing <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> against shape Na9ce8f15a3214858924172f1e93f56eb
+    Triples:
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:GeneToGeneProductRelationship .
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:SequenceFeatureRelationship .
+   2 triples exceeds max {0,1}
+  Testing <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> against shape Na9ce8f15a3214858924172f1e93f56eb
+    Triples:
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:GeneToGeneProductRelationship .
+      <http://data2services/model/association/carrier/08a1b683d4c1c1d97545fbfae62adc1b> rdf:type biolink:SequenceFeatureRelationship .
+   2 triples exceeds max {0,1}
+
   Focus: http://data2services/model/association/carrier/08b0f41254f99fe99092848ca0acd921
   Start: None
   Reason: No start node located

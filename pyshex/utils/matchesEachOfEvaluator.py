@@ -28,6 +28,7 @@ class EachOfEvaluator:
         #                   Evaluate with set of all predicates and return false if fail
         #       Case 4: predicate occurs in two or more expressions and at least one of the referenced expressions
         self.expressions: list[ShExJ.tripleExpr] = []
+        self.T = T
 
         self.predicate_to_expression_nums: dict[IRIREF, list[int]] = {}
         self.expression_num_predicates: list[set[IRIREF]] = []
@@ -44,6 +45,14 @@ class EachOfEvaluator:
 
     def evaluate(self, cntxt: Context) -> bool:
         from pyshex.shape_expressions_language.p5_5_shapes_and_triple_expressions import matches
+
+        # matches(T, EachOf) requires T to be partitioned among the subexpressions: a
+        # triple whose predicate no subexpression mentions can belong to no part, so no
+        # partition exists.  (Tolerating leftovers is the caller's business -- the
+        # remainder in satisfiesShape, or _expression_matches' EXTRA retry loop.)
+        mentioned = {str(p) for preds in self.expression_num_predicates for p in preds}
+        if any(str(t.p) not in mentioned for t in self.T):
+            return False
 
         for p, expr_nums in self.predicate_to_expression_nums.items():
             if all(len(self.expression_num_predicates[expr_num]) == 1 for expr_num in expr_nums):

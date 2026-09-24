@@ -1,4 +1,6 @@
 """ Implementation of `5.5 Shapes and Triple Expressions <http://shex.io/shex-semantics/#shapes-and-TEs>`_"""
+from contextlib import contextmanager
+
 from ShExJSG import ShExJ
 from pyjsg.jsglib import isinstance_
 from rdflib import URIRef
@@ -8,6 +10,9 @@ from pyshex.shape_expressions_language.p3_terminology import arcsOut
 from pyshex.shape_expressions_language.p5_7_semantic_actions import semActsSatisfied
 from pyshex.shape_expressions_language.p5_context import Context, DebugContext
 from pyshex.shapemap_structure_and_language.p1_notation_and_terminology import RDFGraph, RDFTriple, Node
+from itertools import product
+
+from pyshex.utils.feasibility import TripleExprFeasibility, predicate_counts
 from pyshex.utils.matchesEachOfEvaluator import EachOfEvaluator
 from pyshex.utils.partitions import partition_t, partition_2
 from pyshex.utils.schema_utils import predicates_in_expression, triple_constraints_in_expression, \
@@ -34,34 +39,39 @@ def satisfiesShape(cntxt: Context, n: Node, S: ShExJ.Shape, c: DebugContext) -> 
     """
 
     # Recursion detection.  If start_evaluating returns a boolean value, this is the assumed result of the shape
-    # evaluation.  If it returns None, then an initial evaluation is needed
-    rslt = cntxt.start_evaluating(n, S)
+    # evaluation.  If it returns None, then an initial evaluation is needed.
+    # Evaluations against an EXTENDS-allocated part of the neighbourhood are not cached
+    # and consult no cache: the same (node, shape) pair can genuinely differ between
+    # parts (cf. shex.js, which skips its "known"/"seen" caches under a subGraph).
+    restricted = _active_restriction(cntxt, n) is not None
+    rslt = None if restricted else cntxt.start_evaluating(n, S)
 
     if rslt is None:
         cntxt.evaluate_stack.append((n, S.id))
+
+        if getattr(S, 'extends', None):
+            rslt = satisfiesExtendedShape(cntxt, n, S, c)
+            if not restricted:
+                done, consistent = cntxt.done_evaluating(n, S, rslt)
+                if not done:
+                    rslt = satisfiesShape(cntxt, n, S)
+                rslt = rslt and consistent
+            cntxt.evaluate_stack.pop()
+            return rslt
+
         predicates = directed_predicates_in_expression(S, cntxt)
-        matchables = RDFGraph()
-
-        # Note: The code below does an "over-slurp" for the sake of expediency.  If you are interested in
-        #       getting EXACTLY the needed triples, set cntxt.over_slurp to false
-        if isinstance(cntxt.graph, SlurpyGraph) and cntxt.over_slurp:
-            with slurper(cntxt, n, S) as g:
-                _ = g.triples((n, None, None))
-
-        for predicate, direction in predicates.items():
-            with slurper(cntxt, n, S) as g:
-                matchables.add_triples(g.triples((n if direction.is_fwd else None,
-                                                  iriref_to_uriref(predicate),
-                                                  n if direction.is_rev else None)))
+        matchables = _collect_matchables(cntxt, n, S, predicates)
 
         if c.debug:
             print(c.i(1, "predicates:", sorted(cntxt.n3_mapper.n3(p) for p in predicates.keys())))
             print(c.i(1, "matchables:", sorted(cntxt.n3_mapper.n3(m) for m in matchables)))
             print()
 
-        if S.closed:
+        if S.closed or (restricted and _active_restriction_closed(cntxt, n)):
             # TODO: Is this working correctly on reverse items?
-            non_matchables = RDFGraph([t for t in arcsOut(cntxt.graph, n) if t not in matchables])
+            restriction = _active_restriction(cntxt, n)
+            base = restriction if restriction is not None else arcsOut(cntxt.graph, n)
+            non_matchables = RDFGraph([t for t in base if t not in matchables])
             if len(non_matchables):
                 cntxt.fail_reason = "Unmatched triples in CLOSED shape:"
                 cntxt.fail_reason = '\n'.join(f"\t{t}" for t in non_matchables)
@@ -75,33 +85,315 @@ def satisfiesShape(cntxt: Context, n: Node, S: ShExJ.Shape, c: DebugContext) -> 
 
         # Evaluate the actual expression.  Start assuming everything matches...
         if S.expression:
-            extras = {iriref_to_uriref(e) for e in S.extra} if S.extra is not None else {}
-            if matches(cntxt, matchables, S.expression, extras):
-                rslt = True
-            else:
-                if len(extras):
-                    permutable_matchables = RDFGraph([t for t in matchables if t.p in extras])
-                    non_permutable_matchables = RDFGraph([t for t in matchables if t not in permutable_matchables])
-                    if c.debug:
-                        print(c.i(1,
-                                  f"Complete match failed -- evaluating extras", list(extras)))
-                    for matched, remainder in partition_2(permutable_matchables):
-                        permutation = non_permutable_matchables.union(matched)
-                        if matches(cntxt, permutation, S.expression):
-                            rslt = True
-                            break
-                rslt = rslt or False
+            rslt = _expression_matches(cntxt, matchables, S, c)
         else:
             rslt = True         # Empty shape
 
         # If an assumption was made and the result doesn't match the assumption, switch directions and try again
-        done, consistent = cntxt.done_evaluating(n, S, rslt)
-        if not done:
-            rslt = satisfiesShape(cntxt, n, S)
-        rslt = rslt and consistent
+        if not restricted:
+            done, consistent = cntxt.done_evaluating(n, S, rslt)
+            if not done:
+                rslt = satisfiesShape(cntxt, n, S)
+            rslt = rslt and consistent
 
         cntxt.evaluate_stack.pop()
     return rslt
+
+
+def _restriction_stack(cntxt: Context) -> list:
+    if not hasattr(cntxt, '_extends_restrictions'):
+        cntxt._extends_restrictions = []
+    return cntxt._extends_restrictions
+
+
+def _active_restriction(cntxt: Context, n: Node) -> RDFGraph | None:
+    """The set of triples an enclosing EXTENDS allocation dedicated to evaluations of
+    node n, if any.  Scoped by focus node so that value expression evaluation of other
+    nodes still sees the whole graph."""
+    for node, triples, _closed in reversed(_restriction_stack(cntxt)):
+        if node == n:
+            return triples
+    return None
+
+
+def _active_restriction_closed(cntxt: Context, n: Node) -> bool:
+    """Whether the enclosing EXTENDS allocation for node n was made under a CLOSED
+    shape.  Closedness is selection-local and inherited: every triple allocated under a
+    CLOSED extended shape must be consumed by the target it was allocated to, so e.g. a
+    triple matching only an unselected OR branch cannot hide there (cf. jena-shex's
+    selection-dependent matchables and rudof's selection-local CLOSED alphabet)."""
+    for node, _triples, closed in reversed(_restriction_stack(cntxt)):
+        if node == n:
+            return closed
+    return False
+
+
+@contextmanager
+def suspended_inherited_closed(cntxt: Context, n: Node):
+    """Inherited closedness holds a shape expression responsible for consuming the whole
+    allocation -- which is right for an OR branch (the selection must account for every
+    allocated triple) but wrong below an AND or NOT: an AND distributes the allocation
+    among its conjuncts, so no single conjunct covers it, and a negated shape is a
+    filter over the allocation, never its consumer.  ShapeAnd/ShapeNot evaluation
+    therefore suspends the flag on the innermost allocation for n; the allocation's
+    coverage is already guaranteed by the allocator (a triple matching nothing is
+    rejected before parts are formed) and by any conjunct's own CLOSED."""
+    stack = _restriction_stack(cntxt)
+    for i in range(len(stack) - 1, -1, -1):
+        node, triples, closed = stack[i]
+        if node == n:
+            if closed:
+                stack[i] = (node, triples, False)
+                try:
+                    yield
+                finally:
+                    stack[i] = (node, triples, True)
+            else:
+                yield
+            return
+    yield
+
+
+def _collect_matchables(cntxt: Context, n: Node, S: ShExJ.Shape, predicates) -> RDFGraph:
+    """The neighbourhood triples whose predicate is mentioned in the expression --
+    from the enclosing EXTENDS allocation when one is active, otherwise from the graph."""
+    matchables = RDFGraph()
+    restriction = _active_restriction(cntxt, n)
+    if restriction is not None:
+        for t in restriction:
+            direction = predicates.get(str(t.p))
+            if direction is not None and ((direction.is_fwd and t.s == n) or (direction.is_rev and t.o == n)):
+                matchables.add(t)
+        return matchables
+
+    # Note: The code below does an "over-slurp" for the sake of expediency.  If you are interested in
+    #       getting EXACTLY the needed triples, set cntxt.over_slurp to false
+    if isinstance(cntxt.graph, SlurpyGraph) and cntxt.over_slurp:
+        with slurper(cntxt, n, S) as g:
+            _ = g.triples((n, None, None))
+
+    for predicate, direction in predicates.items():
+        with slurper(cntxt, n, S) as g:
+            matchables.add_triples(g.triples((n if direction.is_fwd else None,
+                                              iriref_to_uriref(predicate),
+                                              n if direction.is_rev else None)))
+    return matchables
+
+
+def _expression_matches(cntxt: Context, matchables: RDFGraph, S: ShExJ.Shape, c: DebugContext) -> bool:
+    """Evaluate S.expression against matchables, honoring EXTRA -- with a feasibility
+    guard that refutes structurally hopeless neighbourhoods before any partitioning."""
+    feas = TripleExprFeasibility(S.expression, cntxt.tripleExprFor)
+    hi = predicate_counts(feas, matchables)
+    if not feas.feasible({}, hi):
+        missing = feas.unattainable_mandatory(hi)
+        if missing:
+            # Same wording as the cardinality check this guard pre-empts, so that a
+            # refutation reads identically whether it was found early or by matching.
+            cntxt.fail_reason = '\n'.join(
+                f"   No matching triples found for predicate {p}" for p in
+                dict.fromkeys(cntxt.n3_mapper.n3(iriref_to_uriref(tc.predicate)) for tc in missing))
+        else:
+            cntxt.fail_reason = "Feasibility: no assignment of the neighbourhood can satisfy the expression"
+        return False
+
+    extras = {iriref_to_uriref(e) for e in S.extra} if S.extra is not None else {}
+    if matches(cntxt, matchables, S.expression, extras):
+        return True
+    if len(extras):
+        # valid_remainder: a triple that matches a TripleConstraint in the expression
+        # (any constraint, selected branch or not) may never be absorbed by EXTRA
+        tcs = triple_constraints_in_expression(S.expression, cntxt)
+        permutable_matchables = RDFGraph([t for t in matchables if t.p in extras and
+                                          not any(matchesTripleConstraint(cntxt, t, tc) for tc in tcs)])
+        non_permutable_matchables = RDFGraph([t for t in matchables if t not in permutable_matchables])
+        if c.debug:
+            print(c.i(1, f"Complete match failed -- evaluating extras", list(extras)))
+        for matched, remainder in partition_2(permutable_matchables):
+            permutation = non_permutable_matchables.union(matched)
+            # feasibility pre-filter: skip subsets that cannot satisfy the expression
+            if not feas.feasible({}, predicate_counts(feas, permutation)):
+                continue
+            if matches(cntxt, permutation, S.expression):
+                return True
+    return False
+
+
+def _candidate_predicates(cntxt: Context, se) -> dict:
+    """Directed predicates that could allocate triples to an extension target: the
+    predicates of every Shape reachable through references, AND/OR branches and extends
+    chains.  Negated shape expressions contribute none -- a negation is a filter over
+    the allocated triples, never a sink for them (cf. the Jena/rudof/shex.js EXTENDS
+    implementations)."""
+    result: dict = {}
+    seen: set[int] = set()
+
+    def walk(expr) -> None:
+        if expr is None or id(expr) in seen:
+            return
+        seen.add(id(expr))
+        if isinstance_(expr, ShExJ.shapeExprLabel):
+            walk(cntxt.shapeExprFor(expr))
+        elif isinstance(expr, ShExJ.ShapeDecl):
+            walk(expr.shapeExpr)
+        elif isinstance(expr, (ShExJ.ShapeAnd, ShExJ.ShapeOr)):
+            for nested in expr.shapeExprs:
+                walk(nested)
+        elif isinstance(expr, ShExJ.Shape):
+            for pred, direction in directed_predicates_in_expression(expr, cntxt).items():
+                merged = result.setdefault(pred, type(direction)())
+                if direction.is_fwd:
+                    merged.dir(True)
+                if direction.is_rev:
+                    merged.dir(False)
+            for ext in getattr(expr, 'extends', None) or []:
+                walk(ext)
+        # ShapeNot, NodeConstraint, ShapeExternal: no candidate predicates
+
+    walk(se)
+    return result
+
+
+def _extension_triple_constraints(cntxt: Context, se) -> list:
+    """The TripleConstraints reachable from an extension target through references,
+    AND/OR branches, shapes' expressions and their extends chains.  Negated shape
+    expressions contribute none (a negation is a filter, not a sink)."""
+    result: list = []
+    seen: set[int] = set()
+
+    def tc_collector(acc, expr, _cntxt) -> None:
+        if isinstance(expr, ShExJ.TripleConstraint):
+            acc.append(expr)
+
+    def walk(expr) -> None:
+        if expr is None or id(expr) in seen:
+            return
+        seen.add(id(expr))
+        if isinstance_(expr, ShExJ.shapeExprLabel):
+            walk(cntxt.shapeExprFor(expr))
+        elif isinstance(expr, ShExJ.ShapeDecl):
+            walk(expr.shapeExpr)
+        elif isinstance(expr, (ShExJ.ShapeAnd, ShExJ.ShapeOr)):
+            for nested in expr.shapeExprs:
+                walk(nested)
+        elif isinstance(expr, ShExJ.Shape):
+            if expr.expression is not None:
+                cntxt.visit_triple_expressions(expr.expression, tc_collector, result)
+            for ext in getattr(expr, 'extends', None) or []:
+                walk(ext)
+
+    walk(se)
+    return result
+
+
+def satisfiesExtendedShape(cntxt: Context, n: Node, S: ShExJ.Shape, c: DebugContext) -> bool:
+    """satisfies(n, S) for a Shape with extends: some allocation of the matchable
+    neighbourhood among the extension targets and the local expression is such that each
+    extension target is satisfied by n with its allocated triples (evaluated through the
+    ordinary satisfies(), so OR / AND / NOT parents work uniformly) and the local
+    expression matches its allocated triples."""
+    from pyshex.shape_expressions_language.p5_3_shape_expressions import satisfies
+
+    ext_exprs = [cntxt.shapeExprFor(e) if isinstance_(e, ShExJ.shapeExprLabel) else e for e in S.extends]
+    ext_preds = [_candidate_predicates(cntxt, se) for se in ext_exprs]
+    local_preds = directed_predicates_in_expression(S, cntxt) if S.expression else {}
+    local_ix = len(ext_exprs)
+
+    # Selection-local matchables: the union of the extension targets' and the local
+    # expression's predicates
+    all_preds: dict = {}
+    for preds in ext_preds + [local_preds]:
+        for pred, direction in preds.items():
+            merged = all_preds.setdefault(pred, type(direction)())
+            if direction.is_fwd:
+                merged.dir(True)
+            if direction.is_rev:
+                merged.dir(False)
+    matchables = _collect_matchables(cntxt, n, S, all_preds)
+
+    effective_closed = bool(S.closed) or _active_restriction_closed(cntxt, n)
+    if effective_closed:
+        restriction = _active_restriction(cntxt, n)
+        base = restriction if restriction is not None else arcsOut(cntxt.graph, n)
+        non_matchables = RDFGraph([t for t in base if t not in matchables])
+        if len(non_matchables):
+            cntxt.fail_reason = "Unmatched triples in CLOSED shape:"
+            cntxt.fail_reason = '\n'.join(f"\t{t}" for t in non_matchables)
+            return False
+
+    def eligible_dir(t, preds) -> bool:
+        direction = preds.get(str(t.p))
+        return direction is not None and ((direction.is_fwd and t.s == n) or (direction.is_rev and t.o == n))
+
+    # Allocation is to *triple constraints*, and a constraint reached through several
+    # extension chains (diamond inheritance: a shared ancestor) allocates its triples to
+    # every one of those extensions at once -- a triple cannot evade one chain's
+    # constraints by hiding in another (cf. shex.js tc2exts).  Eligibility checks the
+    # value expression as well as the predicate, so e.g. a role a NOT-ed shape rejects
+    # is never allocated on the strength of that shape's constraint.
+    tc2exts: dict[int, set[int]] = {}
+    all_tcs: dict[int, ShExJ.TripleConstraint] = {}
+    for i, se in enumerate(ext_exprs):
+        for tc in _extension_triple_constraints(cntxt, se):
+            tc2exts.setdefault(id(tc), set()).add(i)
+            all_tcs[id(tc)] = tc
+
+    def tc_eligible(t, tc) -> bool:
+        if str(t.p) != str(tc.predicate):
+            return False
+        if tc.inverse and t.o != n or not tc.inverse and t.s != n:
+            return False
+        return matchesTripleConstraint(cntxt, t, tc)
+
+    extras = {iriref_to_uriref(e) for e in S.extra} if S.extra is not None else {}
+    alloc_triples = []
+    candidates: list[list[tuple[int, ...]]] = []
+    for t in sorted(matchables):
+        signatures = {tuple(sorted(tc2exts[key])) for key, tc in all_tcs.items() if tc_eligible(t, tc)}
+        options: list[tuple[int, ...]] = sorted(signatures)
+        if S.expression and eligible_dir(t, local_preds):
+            options.append((local_ix,))
+        if not options:
+            if t.p in extras:
+                continue        # absorbed by EXTRA
+            cntxt.fail_reason = f"EXTENDS: triple {t} matches no extension target or local expression"
+            return False
+        alloc_triples.append(t)
+        candidates.append(options)
+
+    feas = TripleExprFeasibility(S.expression, cntxt.tripleExprFor) if S.expression else None
+    ext_memo: dict = {}         # (extension ordinal, allocated triples) -> bool
+
+    for assignment in product(*candidates):
+        parts: list[RDFGraph] = [RDFGraph() for _ in range(len(ext_exprs) + 1)]
+        for t, targets in zip(alloc_triples, assignment):
+            for target in targets:
+                parts[target].add(t)
+
+        # feasibility guard: refute the local part before any evaluation
+        if feas is not None and not feas.feasible({}, predicate_counts(feas, parts[local_ix])):
+            continue
+
+        ok = True
+        for i, se in enumerate(ext_exprs):
+            key = (i, frozenset(parts[i]))
+            if key not in ext_memo:
+                _restriction_stack(cntxt).append((n, parts[i], effective_closed))
+                try:
+                    ext_memo[key] = satisfies(cntxt, n, se)
+                finally:
+                    _restriction_stack(cntxt).pop()
+            if not ext_memo[key]:
+                ok = False
+                break
+        if ok and S.expression:
+            ok = _expression_matches(cntxt, parts[local_ix], S, c)
+        if ok:
+            return True
+
+    cntxt.fail_reason = (f"EXTENDS: no allocation of {len(alloc_triples)} triple(s) to "
+                         f"{len(ext_exprs)} extension(s) and the local expression satisfies all parts")
+    return False
 
 
 def valid_remainder(cntxt: Context, n: Node, matchables: RDFGraph, S: ShExJ.Shape) -> bool:
@@ -179,7 +471,7 @@ def matches(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr, extras: set[URI
         return matchesExpr(cntxt, T, expr)
     else:
         return matchesCardinality(cntxt, T, expr, extras) \
-               and (expr.semActs is None or semActsSatisfied(expr.semActs, cntxt))
+               and (expr.semActs is None or semActsSatisfied(expr.semActs, cntxt, T))
 
 
 @trace_matches(True)
@@ -220,9 +512,12 @@ def matchesCardinality(cntxt: Context, T: RDFGraph, expr: ShExJ.tripleExpr | ShE
                 cntxt.fail_reason = f"   No matching triples found for predicate {cntxt.n3_mapper.n3(expr.predicate)}"
             return False
 
-        # Don't include extras in the cardinality check
+        # Don't include extras in the cardinality check.  valid_remainder: EXTRA may
+        # only absorb a triple that does NOT match the constraint -- a matching triple
+        # always counts against the cardinality.
         if extras:
-            must_match = RDFGraph([t for t in T if t.p not in extras])  # The set of things NOT consumed in extra
+            must_match = RDFGraph([t for t in T
+                                   if t.p not in extras or matchesTripleConstraint(cntxt, t, expr)])
         else:
             must_match = T
         if 0 <= max_ < len(must_match):
