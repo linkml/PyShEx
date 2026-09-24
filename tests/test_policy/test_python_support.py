@@ -20,7 +20,7 @@ def classifier_versions() -> list[str]:
 
 
 def ci_matrix_versions() -> list[str]:
-    text = TEST_WORKFLOW.read_text()
+    text = TEST_WORKFLOW.read_text(encoding="utf-8")
     m = re.search(r"^\s*python-version:\s*\[([^\]]*)\]", text, re.MULTILINE)
     assert m, f"no python-version matrix in {TEST_WORKFLOW}"
     return sorted((v.strip().strip("\"'") for v in m.group(1).split(",")), key=Version)
@@ -68,7 +68,12 @@ def test_tooling_targets_match():
 NEW_PYTHON_GRACE = datetime.timedelta(days=90)
 
 
-@pytest.mark.skipif(bool(os.environ.get("SKIP_EXTERNAL_URLS")), reason="network disabled")
+def network_disabled() -> bool:
+    """Same convention as tests/__init__.py: SKIP_EXTERNAL_URLS=false/0/no/empty means enabled."""
+    return os.environ.get("SKIP_EXTERNAL_URLS", "").lower() not in ("", "0", "false", "no")
+
+
+@pytest.mark.skipif(network_disabled(), reason="network disabled")
 def test_newest_cpython_release_is_supported():
     """Every stable CPython (per endoflife.date) released more than NEW_PYTHON_GRACE ago must be supported."""
     try:

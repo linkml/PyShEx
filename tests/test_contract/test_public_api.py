@@ -203,8 +203,8 @@ ex:bob ex:name 17 .
 def test_cli_exit_codes(tmp_path, capsys, focus, expected_rc):
     from pyshex.shex_evaluator import evaluate_cli
 
-    (tmp_path / "s.shex").write_text(SHEX)
-    (tmp_path / "d.ttl").write_text(TTL)
+    (tmp_path / "s.shex").write_text(SHEX, encoding="utf-8")
+    (tmp_path / "d.ttl").write_text(TTL, encoding="utf-8")
     rc = evaluate_cli([str(tmp_path / "d.ttl"), str(tmp_path / "s.shex"), "-fn", focus])
     assert rc == expected_rc
 
@@ -212,7 +212,7 @@ def test_cli_exit_codes(tmp_path, capsys, focus, expected_rc):
 def test_cli_requires_a_focus(tmp_path, capsys):
     from pyshex.shex_evaluator import evaluate_cli
 
-    (tmp_path / "s.shex").write_text(SHEX)
-    (tmp_path / "d.ttl").write_text(TTL)
+    (tmp_path / "s.shex").write_text(SHEX, encoding="utf-8")
+    (tmp_path / "d.ttl").write_text(TTL, encoding="utf-8")
     assert evaluate_cli([str(tmp_path / "d.ttl"), str(tmp_path / "s.shex")]) == 4
     assert evaluate_cli([str(tmp_path / "d.ttl"), str(tmp_path / "s.shex"), "-A"]) == 1

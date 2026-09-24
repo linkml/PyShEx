@@ -88,7 +88,7 @@ def test_evaluate_every_subject_without_start_does_not_raise():
 
 def test_positional_evaluator_with_schema_file(tmp_path):
     shex_file = tmp_path / "model.shex"
-    shex_file.write_text(SHEX)
+    shex_file.write_text(SHEX, encoding="utf-8")
     results = ShExEvaluator(graph(), str(shex_file), JANE, FRIENDLY).evaluate(debug=False)
     assert all(r.result for r in results), [r.reason for r in results if not r.result]
 

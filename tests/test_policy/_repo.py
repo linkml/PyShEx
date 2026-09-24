@@ -15,8 +15,8 @@ if not PYPROJECT.exists():
 
 
 def pyproject() -> dict:
-    return tomllib.loads(PYPROJECT.read_text())
+    return tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
 
 
 def lockfile() -> dict:
-    return tomllib.loads(LOCKFILE.read_text())
+    return tomllib.loads(LOCKFILE.read_text(encoding="utf-8"))

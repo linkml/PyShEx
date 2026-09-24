@@ -80,6 +80,24 @@ def test_runtime_closure_matches_allowlist():
     assert not gone, f"{gone} are no longer runtime dependencies; remove them from ALLOWED_RUNTIME_PACKAGES."
 
 
+def test_runtime_packages_come_from_pypi():
+    """Git, path or URL sources (e.g. [tool.uv.sources]) only apply to development installs.
+
+    A published wheel always resolves its dependencies from PyPI, so CI would be testing
+    different code from what users get.
+    """
+    packages = {canonicalize_name(p["name"]): p for p in lockfile()["package"]}
+    off_registry = {
+        name: packages[name]["source"]
+        for name in sorted(locked_runtime_closure())
+        if "registry" not in packages[name].get("source", {})
+    }
+    assert not off_registry, (
+        f"Runtime dependencies not locked from PyPI: {off_registry}. Release the needed version to PyPI "
+        "and depend on it instead."
+    )
+
+
 def test_no_extras_pull_in_hidden_dependencies():
     assert not pyproject()["project"].get("optional-dependencies"), (
         "Extras are fine, but add their packages to the allowlist review first."
@@ -101,7 +119,7 @@ def test_runtime_dependencies_are_not_dev_tools():
 def imported_top_level_modules() -> set[str]:
     names = set()
     for path in (ROOT / "pyshex").rglob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text(), filename=str(path))):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=str(path))):
             if isinstance(node, ast.Import):
                 names |= {alias.name.split(".")[0] for alias in node.names}
             elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
