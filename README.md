@@ -171,3 +171,25 @@ docker build -t pyshex docker
 docker run --rm -it pyshex -gn '' -ss -ut -pr -sq 'select distinct ?item where{?item a <http://w3id.org/biolink/vocab/Gene>} LIMIT 1' http://graphdb.dumontierlab.com/repositories/ncats-red-kg https://github.com/biolink/biolink-model/raw/master/shex/biolink-modelnc.shex
 ```
 
+
+## Maintenance guardrails
+
+PyShEx is a dependency of [LinkML](https://github.com/linkml/linkml), which asks that
+PyPI releases don't break compatibility, keep up with current Python versions,
+and don't add unexpected heavyweight dependencies. Automated checks enforce this:
+
+* `tests/test_contract` freezes the public API and the call patterns of known clients
+  (linkml and jupyter-rdfify). See its README for what to do when a test fails.
+* `tests/test_policy` checks the runtime dependency allowlist and Python version support.
+* `.github/scripts/api_compat.py` uses griffe to diff the API against the previous release.
+  A breaking change needs the `breaking-change` label on the pull request
+  and a major version bump (minor while 0.x) at release time.
+* The `downstream` CI job installs this tree with the latest linkml and jupyter-rdfify
+  and runs their usage against it. The release workflow re-runs the contract tests
+  on the built wheel before publishing.
+
+Install the git hooks once:
+
+```shell
+uvx pre-commit install
+```
