@@ -155,6 +155,22 @@ Repeated matches keep their values together, so a patient with several blood-pre
 readings becomes several output observations.  Bindings serialize to the same JSON as
 shex.js (`dumps`/`loads`), so either tool can materialize the other's bindings.
 
+* **Binding** validates, then searches the partitions of each node's neighbourhood.
+  If the input conforms in several ways that bind different values, `bind` returns the
+  first, `bindings.alternatives` says how many there were, `bind_all` returns them all,
+  and `strict=True` refuses.  `tests/test_shexmap/pyshex-examples` has a blood-pressure
+  schema that can swap systolic and diastolic this way, and its disambiguated fix.
+* **Materializing** is threaded, after shex.js's `ThreadedMaterializer`: each thread
+  over an output shape's NFA carries its own cursor into the bindings, so a failed
+  optional or alternative never disturbs the others.  All accepting threads are kept
+  (`ThreadedMaterializer.accepts`); the one that uses the most bindings wins, or
+  whichever your `prefer` comparator ranks first.
+* **EXTENDS** works on both sides: an input node binds through the extension it
+  satisfies, and an output reference to an abstract shape materializes whichever
+  extension fits each set of bindings.
+* **Inverse** constraints (`^p`) bind the subjects that point at a node, and
+  materialize triples that point at it.
+
 From a terminal:
 
 ```shell
@@ -163,9 +179,7 @@ shexmap -i data.ttl -s input.shex -f '<tag:BPfhir123>' -b bindings.json   # bind
 shexmap -j bindings.json -t output.shex -r '<tag:b0>'                     # materialize saved bindings
 ```
 
-Bindings are collected after validation by assigning each triple to the first triple
-constraint it satisfies, which matches validation for schemas whose constraints differ by
-predicate or value; `EXTENDS` is not followed.
+`--strict` makes an ambiguous input or output an error instead of a warning.
 
 ## Documentation
 See: [examples](notebooks) Jupyter notebooks for sample uses

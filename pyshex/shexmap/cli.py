@@ -19,7 +19,8 @@ from pathlib import Path
 
 from rdflib import BNode, Graph, URIRef
 
-from pyshex.shexmap import MapFunctionError, MapValidationError, MaterializationError, bind, dumps, loads, materialize
+from pyshex.shexmap import (MapFunctionError, MapValidationError, MaterializationError, ThreadedMaterializer, bind,
+                            dumps, loads)
 from pyshex.shexmap.bindings import term_from_json
 
 
@@ -45,6 +46,8 @@ def genargs(prog: str | None = None) -> ArgumentParser:
     p.add_argument("-r", "--root", help="output node to build: <iri>, iri or _:label (default: a blank node)")
     p.add_argument("--output-start", help="output shape label (default: the output schema's start)")
     p.add_argument("--static", help="JSON object of extra variable values, as shex.js staticVars")
+    p.add_argument("--strict", action="store_true",
+                   help="fail when the input or the output can be matched in more than one way")
     p.add_argument("-o", "--output", help="write the output RDF here (default: stdout)")
     p.add_argument("--output-format", default="turtle", help="output RDF format (default: turtle)")
     return p
@@ -66,7 +69,11 @@ def main(argv: list[str] | None = None, prog: str | None = None) -> int:
             bindings = loads(Path(opts.bindings).read_text(encoding="utf-8"))
         else:
             g = Graph().parse(opts.input, format=opts.input_format)
-            bindings = bind(g, Path(opts.input_schema).read_text(encoding="utf-8"), parse_node(opts.focus), start=opts.start)
+            bindings = bind(g, Path(opts.input_schema).read_text(encoding="utf-8"), parse_node(opts.focus),
+                            start=opts.start, strict=opts.strict)
+            if bindings.ambiguous:
+                print(f"shexmap: warning: the input matches in {bindings.alternatives} ways that bind differently;"
+                      " using the first (--strict makes this an error)", file=sys.stderr)
         if opts.bindings_out:
             text = dumps(bindings, indent=2) + "\n"
             if opts.bindings_out == "-":
@@ -76,9 +83,18 @@ def main(argv: list[str] | None = None, prog: str | None = None) -> int:
         if opts.output_schema:
             static = {k: term_from_json(v) for k, v in json.loads(Path(opts.static).read_text(encoding="utf-8")).items()} \
                 if opts.static else None
-            out = materialize(Path(opts.output_schema).read_text(encoding="utf-8"), bindings,
-                              parse_node(opts.root) if opts.root else BNode(), start=opts.output_start,
-                              static_vars=static)
+            m = ThreadedMaterializer(Path(opts.output_schema).read_text(encoding="utf-8"), static_vars=static)
+            triples = m.materialize(bindings, parse_node(opts.root) if opts.root else BNode(), start=opts.output_start)
+            if len(m.accepts) > 1:
+                if opts.strict:
+                    raise MaterializationError(f"the bindings fit the output schema in {len(m.accepts)} ways")
+                print(f"shexmap: warning: the bindings fit the output schema in {len(m.accepts)} ways;"
+                      " using the one that uses the most bindings", file=sys.stderr)
+            out = Graph()
+            for prefix, ns in m.prefixes.items():
+                out.bind(prefix, ns, override=False)
+            for t in triples:
+                out.add(t)
             text = out.serialize(format=opts.output_format)
             if opts.output:
                 Path(opts.output).write_text(text, encoding="utf-8")

@@ -35,3 +35,16 @@ def test_nonconforming_focus_exits_1(capsys):
                "-b", "-"])
     assert rc == 1
     assert "does not conform" in capsys.readouterr().err
+
+
+PYEX = Path(__file__).parent / "pyshex-examples"
+
+
+def test_ambiguous_input_warns_or_fails_with_strict(capsys):
+    args = ["-i", str(PYEX / "bp-reading.ttl"), "-s", str(PYEX / "bp-ambiguous-schema.shex"),
+            "-f", "<file://" + str((PYEX / "bp-reading.ttl").resolve().parent) + "/reading1>",
+            "-t", str(PYEX / "bp-dam-schema.shex"), "-r", "<tag:bp1>"]
+    assert main(args) == 0
+    assert "matches in 2 ways" in capsys.readouterr().err
+    assert main(args + ["--strict"]) == 1
+    assert "2 ways" in capsys.readouterr().err

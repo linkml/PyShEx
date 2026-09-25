@@ -3,8 +3,8 @@ import pytest
 from rdflib import BNode, Graph, Literal, URIRef, XSD
 from rdflib.compare import isomorphic
 
-from pyshex.shexmap import (BindingNode, Binder, MapFunctionError, MapValidationError, MaterializationError, bind,
-                            dumps, loads, map_graph, materialize)
+from pyshex.shexmap import (AmbiguousBindingsError, Bindings, MapFunctionError, MapValidationError,
+                            MaterializationError, bind, bind_all, dumps, loads, map_graph, materialize)
 from pyshex.shexmap.bindings import term_from_json, term_to_json
 from pyshex.shexmap.functions import expand_variable, lift, lower
 
@@ -103,12 +103,12 @@ def test_optional_constraints_without_bindings_are_skipped():
 def test_missing_required_binding_is_an_error():
     target = PREFIXES + 'start = @:T\n:T { :label xsd:string %Map:{ v:missing %} }'
     with pytest.raises(MaterializationError):
-        materialize(target, BindingNode(), OUT)
+        materialize(target, {}, OUT)
 
 
 def test_static_vars():
     target = PREFIXES + 'start = @:T\n:T { :version xsd:string %Map:{ <http://vars.example/version> %} }'
-    graph = materialize(target, BindingNode(), OUT, static_vars={"http://vars.example/version": Literal("2")})
+    graph = materialize(target, {}, OUT, static_vars={"http://vars.example/version": Literal("2")})
     assert iso(graph, ':out :version "2" .')
 
 
@@ -147,27 +147,34 @@ def test_quoted_static_var_syntax():
     assert term_from_json('"5"^^<http://www.w3.org/2001/XMLSchema#integer>') == Literal("5", datatype=XSD.integer)
 
 
-def test_json_round_trip_keeps_frames():
-    tree = BindingNode(vars={"v:name": Literal("Sue")}, children=[
-        BindingNode(vars={"v:x": Literal("1")}, frame=True),
-        BindingNode(vars={"v:x": Literal("2")}, frame=True),
-    ])
-    again = loads(dumps(tree))
-    assert again.to_json() == tree.to_json()
-    assert again.vars == tree.vars
-    assert [c.frame for c in again.children] == [True, True]
+def test_json_round_trip_keeps_structure():
+    tree = [{"v:name": Literal("Sue")}, [{"v:x": Literal("1")}, {"v:x": Literal("2")}]]
+    again = loads(dumps(Bindings(tree)))
+    assert again.tree == tree
+    assert [f["v:x"] for f in again.frames()] == [Literal("1"), Literal("2")]
 
 
-def test_binder_shares_only_frame_free_singletons():
-    tree = BindingNode(vars={"name": Literal("Sue")}, children=[
-        BindingNode(vars={"use": Literal("work"), "email": Literal("e")}, frame=True),
-        BindingNode(vars={"use": Literal("home"), "tel": Literal("t")}, frame=True),
-    ])
-    binder = Binder(tree)
-    assert binder.get("name") == binder.get("name") == Literal("Sue")    # shared, never used up
-    binder.begin_repetition()
-    assert binder.get("use") == Literal("work")
-    assert binder.get("tel") is None       # bound once, but in another frame
-    binder.end_repetition()
-    assert binder.get("use") == Literal("home")
-    assert binder.get("use") is None       # both used up
+def test_inverse_regex_is_checked_against_the_subject():
+    source = PREFIXES + 'start = @:S\n:S { ^:owns IRI %Map:{ regex(/owner-(?<v:id>[0-9]+)$/) %} }'
+    graph = map_graph(turtle(':owner-42 :owns :a .'), source, A,
+                      PREFIXES + 'start = @:T\n:T { :ownerId . %Map:{ v:id %} }', OUT)
+    assert iso(graph, ':out :ownerId "42" .')
+    with pytest.raises(MapValidationError):
+        bind(turtle(':someone :owns :a .'), source, A)
+
+
+def test_ambiguous_input_is_reported():
+    source = PREFIXES + 'start = @:S\n:S { :p . %Map:{ v:first %} ; :p . %Map:{ v:second %} }'
+    g = turtle(':a :p "x", "y" .')
+    found = bind_all(g, source, A)
+    assert len(found) == 2
+    assert {str(b.tree["http://vars.example/first"]) for b in found} == {"x", "y"}
+    assert bind(g, source, A).ambiguous
+    with pytest.raises(AmbiguousBindingsError):
+        bind(g, source, A, strict=True)
+
+
+def test_abstract_output_shape_without_extensions_is_an_error():
+    target = PREFIXES + 'start = @:T\nABSTRACT :T { :x . %Map:{ v:x %} }'
+    with pytest.raises(MaterializationError, match="abstract"):
+        materialize(target, {"http://vars.example/x": Literal("1")}, OUT)
