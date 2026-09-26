@@ -5,3 +5,7 @@
 commit 58406c3bdd4fa79cc9b0f664ef7a689db040c07b, MIT licence, by Eric Prud'hommeaux).
 Each `manifest.json` entry pairs an input schema and data with the bindings and
 output graph shex.js produces; `test_examples.py` checks PyShEx against them.
+
+`test_cardinality.py` covers cardinality above one: nothing caps how many values a
+`*`/`+` binds or materializes, and three strict `xfail` tests pin the frame model's
+known limits (nested regrouping, transposition, unchecked output value expressions).

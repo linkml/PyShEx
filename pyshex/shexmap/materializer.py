@@ -14,11 +14,14 @@ A port of shex.js's ``ThreadedMaterializer`` (packages/extension-map/doc/threade
   marks with it, so a failed optional group or disjunct never disturbs its siblings.
 * Threads run depth-first in greedy order (another repetition, then the emitting arm of
   an optional, then the first disjunct), except that a lookup which has to **advance to
-  a later frame** is deferred until the alternatives that can still use the current
-  frame have been explored.
-* Every accepting thread is kept; :meth:`ThreadedMaterializer.materialize` returns the
+  a later frame, abandoning unused bindings there,** is deferred until the alternatives
+  that can still use the current frame have been explored.  An advance that abandons
+  nothing is not a choice, so it is not deferred.
+* Every accepting thread is ranked; :meth:`ThreadedMaterializer.materialize` returns the
   one that consumed the most bindings (ties: fewest bindings skipped by cursor advances,
-  then most triples, then discovery order), or whichever ``prefer`` ranks first.
+  then most triples, then discovery order), or whichever ``prefer`` ranks first.  The
+  best ``max_accepts`` are kept in :attr:`~ThreadedMaterializer.accepts`; reaching that
+  many does not stop the search, only a perfect accept or the step budgets do.
 
 Beyond shex.js: ``EXTENDS`` in the output schema materializes the extended shapes' triple
 constraints on the same node, and a reference to a shape that has extensions may
@@ -209,13 +212,20 @@ class ThreadedMaterializer:
     :param prefixes: prefixes for ShExMap variable names; read from ShExC text when omitted
     :param static_vars: variable values available everywhere, never used up
     :param prefer: comparator over :class:`Accept` s, negative when the first is better
+    :param max_repeat: cap on the iterations of one repetition; ``None`` (the default)
+        leaves ``*`` and ``+`` bounded only by the bindings, which the progress guard on
+        repetitions makes safe
+    :param max_call_depth: cap on nested shape calls (cyclic references)
+    :param max_steps: cap on thread steps for the whole search
+    :param max_accepts: how many of the best accepts to keep in :attr:`accepts`
+    :param explore_steps: how many steps to keep searching after the last improvement
     :param require_bindings_in_subshapes: drop optional subshapes that consume no binding
     """
 
     def __init__(self, schema: str | ShExJ.Schema, prefixes: Mapping[str, str] | None = None,
                  static_vars: Mapping[str, Node] | None = None,
                  prefer: Callable[[Accept, Accept], int] | None = None,
-                 max_repeat: int = 50, max_call_depth: int = 50, max_steps: int = 1_000_000,
+                 max_repeat: int | None = None, max_call_depth: int = 50, max_steps: int = 1_000_000,
                  max_accepts: int = 20, explore_steps: int = 10_000,
                  require_bindings_in_subshapes: bool = False) -> None:
         from pyshex.utils.schema_loader import SchemaLoader
@@ -356,8 +366,8 @@ class ThreadedMaterializer:
     # -- running ------------------------------------------------------------------------
     def materialize(self, bindings, root: str | Node | None = None, start=None) -> list[tuple[Node, Node, Node]]:
         """The triples of the best materialization of ``start`` (default: the schema's start)
-        rooted at ``root`` (default: a new blank node).  All distinct results are kept in
-        :attr:`accepts`, the returned one in :attr:`chosen`.
+        rooted at ``root`` (default: a new blank node).  The best ``max_accepts`` distinct
+        results are kept in :attr:`accepts`, the returned one in :attr:`chosen`.
 
         :raises MaterializationError: when no thread reaches an accepting state
         """
@@ -381,12 +391,14 @@ class ThreadedMaterializer:
         by_used: dict[frozenset, Accept] = {}
         graphs_seen: set[frozenset] = set()
         total = sum(len(f) for f in frames)
+        found = 0                               # distinct accepts, kept or not
+        best: Accept | None = None
 
         stack = [Thread(nfa, nfa.start, root, (), None, Cursor(), None, 0)]
         deferred: list[Thread] = []
         seen: set = set()
         steps = pruned = 0
-        accepted_at = None
+        accepted_at = None                      # step of the last improvement of ``best``
         truncated = False
 
         while stack or deferred:
@@ -396,7 +408,7 @@ class ThreadedMaterializer:
                     truncated = True
                     break
                 raise MaterializationError(f"exceeded max_steps={self.max_steps}", failures,
-                                           self._report(failures, referenced, available, accepts, True, pruned))
+                                           self._report(failures, referenced, available, found, True, pruned))
             if accepted_at is not None and steps - accepted_at > self.explore_steps:
                 truncated = True
                 break
@@ -423,9 +435,21 @@ class ThreadedMaterializer:
                     accept = Accept(triples, th.cursor.n, th.cursor.skipped, th.cursor.used)
                     by_used[th.cursor.used] = accept
                     accepts.append(accept)
-                    if accepted_at is None:
-                        accepted_at = steps
-                    if accept.consumed >= total or len(accepts) >= self.max_accepts:
+                    found += 1
+                    if best is None or self._better(accept, best):
+                        best, accepted_at = accept, steps
+                    if len(accepts) > self.max_accepts:
+                        # keep the best max_accepts: a full list bounds memory and the
+                        # alternatives offered, not the search -- the greedy leader's
+                        # prefixes accept before it does, and would otherwise crowd it out
+                        others = [a for a in accepts if a is not best]
+                        worst = others[0]
+                        for a in others[1:]:
+                            if not self._better(a, worst):       # ties: drop the latest
+                                worst = a
+                        accepts.remove(worst)
+                        del by_used[worst.used]
+                    if accept.consumed >= total:    # perfect: nothing can beat it
                         break
                     continue
                 frame = th.call_stack
@@ -448,27 +472,28 @@ class ThreadedMaterializer:
                     stack.append(replace(th, state=st.outs[1], repeats=_repeats_set(th.repeats, th.state, None)))
                 # another iteration -- only if the last one consumed a frame binding, or
                 # constant-only subexpressions would repeat to max_repeat
-                if count < min(st.max, self.max_repeat) and (count == 0 or th.cursor.n > at):
+                limit = st.max if self.max_repeat is None else min(st.max, self.max_repeat)
+                if count < limit and (count == 0 or th.cursor.n > at):
                     stack.append(replace(th, state=st.outs[0],
                                          repeats=_repeats_set(th.repeats, th.state, (count + 1, th.cursor.n))))
 
             elif st.type == 'TC':
                 succs: list[Thread] = []
                 self._step(th, st, frames, succs, failures, referenced, bnode_prefix)
-                if succs and succs[0].cursor.idx > th.cursor.idx:
-                    deferred.extend(succs)      # advancing frames is a choice: explore in-frame first
+                if succs and succs[0].cursor.skipped > th.cursor.skipped:
+                    # advancing past unused bindings is a choice: explore the alternatives
+                    # that can still use them first.  (An advance that abandons nothing
+                    # has no alternative, and deferring it would only make the exit arms
+                    # of enclosing repetitions accept, one per iteration, ahead of it.)
+                    deferred.extend(succs)
                 else:
                     stack.extend(succs)
             else:
                 raise MaterializationError(f"unexpected NFA state {st.type}")
 
-        report = self._report(failures, referenced, available, accepts, truncated, pruned)
-        if not accepts:
+        report = self._report(failures, referenced, available, found, truncated, pruned)
+        if best is None:
             raise MaterializationError("no thread reached an accepting state", failures, report)
-        best = accepts[0]
-        for a in accepts[1:]:
-            if self._better(a, best):
-                best = a
         self.chosen = best
         return best.triples
 
@@ -477,7 +502,7 @@ class ThreadedMaterializer:
             return self.prefer(a, b) < 0
         return (a.consumed, -a.skipped, len(a.triples)) > (b.consumed, -b.skipped, len(b.triples))
 
-    def _report(self, failures, referenced, available, accepts, truncated, pruned) -> dict:
+    def _report(self, failures, referenced, available, found: int, truncated, pruned) -> dict:
         seen, unbound = set(), []
         for f in failures:
             v = f.get('variable')
@@ -488,7 +513,7 @@ class ThreadedMaterializer:
         self.last_report = {
             'unbound_variables': unbound,
             'unused_statics': [s for s in self.statics if s not in referenced],
-            'alternatives': len(accepts),
+            'alternatives': found,
             'exploration_truncated': truncated,
             'configs_pruned': pruned,
         }

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
@@ -40,7 +41,6 @@ from pyshex.shexmap import functions
 
 MAP_EXTENSION = "http://shex.io/extensions/Map/#"
 
-UNBOUNDED_CAP = 50           # never expand "*" further than this (matches shex.js)
 MAX_ALTERNATIVES = 20        # distinct binding trees to collect before giving up counting
 MAX_PARTITIONS = 10_000      # partitions of one neighbourhood to try
 
@@ -189,11 +189,14 @@ def map_actions(expr) -> list[ShExJ.SemAct]:
     return [a for a in (getattr(expr, 'semActs', None) or []) if str(a.name) == MAP_EXTENSION]
 
 
-def cardinality(expr) -> tuple[int, int]:
-    """(min, max) with defaults applied; an unbounded max becomes UNBOUNDED_CAP."""
+def cardinality(expr) -> tuple[int, float]:
+    """(min, max) with defaults applied; an unbounded max is ``math.inf``.
+
+    Nothing caps a ``*`` or ``+`` here: how many triples a constraint may take is decided
+    by the neighbourhood, as it is in validation (shex.js validates without a cap too)."""
     min_ = 1 if expr.min is None else expr.min
     max_ = 1 if expr.max is None else expr.max
-    return min_, (UNBOUNDED_CAP if max_ == -1 else max_)
+    return min_, (math.inf if max_ == -1 else max_)
 
 
 def is_repeated(expr) -> bool:
@@ -406,7 +409,14 @@ class _Extractor:
             results = _dedupe(results, self.limit)
             if len(results) >= self.limit:
                 break
-        return results or [_Record()]
+        if not results:
+            # validation accepted the node, so a partition exists: either the search gave
+            # up (MAX_PARTITIONS) or the partitioner disagrees with the validator.  Say
+            # so, rather than binding nothing here and handing back a hollow tree.
+            raise MapValidationError(
+                f"no partition of the neighbourhood of {n} matches shape {getattr(S, 'id', None) or '(inline)'}"
+                + (f" within {MAX_PARTITIONS} partitions" if tried > MAX_PARTITIONS else ""))
+        return results
 
     def _own_tcs(self, S: ShExJ.Shape) -> list[ShExJ.TripleConstraint]:
         """Triple constraints of S's own expression, not of the shapes nested in them."""
@@ -453,7 +463,7 @@ class _Extractor:
                 (dt for dt in available if dt[0] == direction and dt[1][1] == pred
                  and (expr.valueExpr is None or self.satisfies(self._value(expr, dt[1]), expr.valueExpr))),
                 key=lambda dt: self._value(expr, dt[1]).n3())
-            for k in range(min(max_, len(candidates)), min_ - 1, -1):
+            for k in range(int(min(max_, len(candidates))), min_ - 1, -1):
                 for combo in itertools.combinations(candidates, k):
                     yield [('tc', expr, t) for _, t in combo], available - frozenset(combo)
             return
