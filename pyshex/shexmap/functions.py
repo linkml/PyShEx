@@ -16,10 +16,11 @@ directions, as in shex.js's extension-map:
     lower: find the key whose value the variable holds.
 """
 import json
+from urllib.parse import quote
 import re
 from collections.abc import Callable, Mapping
 
-from rdflib import Literal
+from rdflib import Literal, URIRef
 from rdflib.term import Node
 
 VARIABLE = re.compile(r'^ *(?:<([^>]*)>|([^:<>\s]*):(\S*)) *$')
@@ -156,8 +157,94 @@ def _hashmap_lower(code: str, args: str, get: Callable[[str], Node | None], pref
     raise MapFunctionError(f'{code.strip()} cannot invert "{val}"')
 
 
-LIFTERS = {'regex': _regex_lift, 'hashmap': _hashmap_lift}
-LOWERERS = {'regex': _regex_lower, 'hashmap': _hashmap_lower}
+# -- id ----------------------------------------------------------------------------------
+
+NODE_ARGUMENT = "@node"     # in id(): the input node the enclosing iteration matched
+_PLACEHOLDER = re.compile(r'\{([^{}]*)\}')
+
+
+class Template:
+    """An IRI template argument of ``id()``: ``<http://a.example/person/{v:mrn}>``."""
+
+    def __init__(self, text: str, prefixes: Mapping[str, str]) -> None:
+        self.segments: list = []            # str, or ('var', iri)
+        pos = 0
+        for m in _PLACEHOLDER.finditer(text):
+            if m.start() > pos:
+                self.segments.append(text[pos:m.start()])
+            self.segments.append(('var', expand_variable(m.group(1), prefixes)))
+            pos = m.end()
+        if pos < len(text):
+            self.segments.append(text[pos:])
+        self.text = text
+
+    def variables(self) -> list[str]:
+        return [seg[1] for seg in self.segments if isinstance(seg, tuple)]
+
+    def expand(self, get: Callable[[str], Node | None]) -> URIRef | None:
+        """The IRI, values percent-encoded as R2RML does; None when a variable is unbound."""
+        out = []
+        for seg in self.segments:
+            if isinstance(seg, tuple):
+                value = get(seg[1])
+                if value is None:
+                    return None
+                out.append(quote(str(value), safe="-._~"))
+            else:
+                out.append(seg)
+        return URIRef("".join(out))
+
+    def __repr__(self) -> str:
+        return f"Template(<{self.text}>)"
+
+
+def key_terms(code: str, prefixes: Mapping[str, str]) -> list:
+    """The arguments of an ``id(...)`` code: variable IRIs, :data:`NODE_ARGUMENT`, and
+    :class:`Template` s for ``<...{var}...>`` arguments."""
+    name, args = _split_call(code)
+    if name != 'id':
+        raise MapFunctionError(f"{code.strip()} is not an id() code")
+    parts = [a.strip() for a in args.split(',')] if args.strip() else []
+    if not parts:
+        raise MapFunctionError(f"id() needs at least one variable, template or {NODE_ARGUMENT}: {code.strip()}")
+    terms = []
+    for a in parts:
+        if a == NODE_ARGUMENT:
+            terms.append(a)
+        elif a.startswith('<') and a.endswith('>') and '{' in a:
+            terms.append(Template(a[1:-1], prefixes))
+        else:
+            terms.append(expand_variable(a, prefixes))
+    return terms
+
+
+def key_arguments(code: str, prefixes: Mapping[str, str]) -> list[str]:
+    """The variables an ``id(...)`` code reads (templates' placeholders included), and
+    :data:`NODE_ARGUMENT` where it appears."""
+    out: list[str] = []
+    for term in key_terms(code, prefixes):
+        out.extend(term.variables() if isinstance(term, Template) else [term])
+    return out
+
+
+def _id_lift(code: str, args: str, value, prefixes: Mapping[str, str]) -> dict[str, Node]:
+    """``id(...)`` names an output node; validating input it binds nothing (so one schema
+    serves both directions)."""
+    key_arguments(code, prefixes)
+    return {}
+
+
+def _id_lower(code: str, args: str, get, prefixes: Mapping[str, str]) -> Node | None:
+    raise MapFunctionError(f"{code.strip()} names a node; it belongs on a shape-valued constraint, not a value")
+
+
+LIFTERS = {'regex': _regex_lift, 'hashmap': _hashmap_lift, 'id': _id_lift}
+LOWERERS = {'regex': _regex_lower, 'hashmap': _hashmap_lower, 'id': _id_lower}
+
+
+def is_key_code(code: str) -> bool:
+    m = FUNCTION_CALL.match(code)
+    return m is not None and m.group(1) == 'id'
 
 
 def lift(code: str, value, prefixes: Mapping[str, str]) -> dict[str, Node]:
@@ -166,6 +253,19 @@ def lift(code: str, value, prefixes: Mapping[str, str]) -> dict[str, Node]:
     if name not in LIFTERS:
         raise MapFunctionError(f"Unknown ShExMap function {name}() in {code.strip()}")
     return LIFTERS[name](code, args, value, prefixes)
+
+
+def variables_of(code: str, prefixes: Mapping[str, str]) -> list[str]:
+    """The variables a function call reads when lowering (and binds when lifting)."""
+    name, args = _split_call(code)
+    if name == 'regex':
+        return [expand_variable(_unescape_meta(m.group(1)), prefixes)
+                for m in re.finditer(_CAPTURE_NAME, _regex_body(code, args))]
+    if name == 'hashmap':
+        return [_hashmap_args(code, args, prefixes)[0]]
+    if name == 'id':
+        return [a for a in key_arguments(code, prefixes) if a != NODE_ARGUMENT]
+    raise MapFunctionError(f"Unknown ShExMap function {name}() in {code.strip()}")
 
 
 def lower(code: str, get: Callable[[str], Node | None], prefixes: Mapping[str, str]) -> Node | None:

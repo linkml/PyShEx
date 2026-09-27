@@ -1,11 +1,22 @@
 """Collect ShExMap bindings from RDF that conforms to an input schema.
 
-**Binding trees** use the structure shex.js prints and reads, with rdflib terms as values:
-an object maps variable IRIs to terms, and a list is a sequence whose elements are
-objects or nested lists.  A repeated match (a triple constraint with max > 1, or one
-iteration of a repeated group) contributes one element to a list, so everything bound
-from one reading of a blood pressure stays together.  :class:`Bindings` wraps a tree,
-and :func:`dumps`/:func:`loads` convert to and from shex.js's JSON.
+**Binding trees** use the structure shex.js prints and reads, with rdflib terms as values.
+A *scope* (what one node's match binds) is an object mapping variable IRIs to terms, or,
+when the match has repeated parts, an array whose first element is that object (possibly
+empty) and whose other elements are *lists*; a list has one element per iteration of a
+repeated constraint or group, each element a scope, so everything bound from one reading
+of a blood pressure stays together.  A list's elements are uniform: all objects, or all
+arrays (a lone object among arrays is written as ``[object]``), so that a reader never has
+to guess whether an array is a scope or a list.  Every repeated constraint or group of the
+shape gets its list, in schema order, empty when nothing matched, so a list's position
+says which expression it came from whatever the data.  A non-repeated nested shape merges
+into the scope that matched it.  An element made by a repeated *shape-valued* constraint also
+records the node the nested shape matched under the reserved key ``"@node"``
+(:data:`NODE_KEY`; the subject for an inverse constraint).  It is not a variable:
+:func:`normalize` leaves it out of the frames and no output constraint can read it.  It
+says which input node an iteration came from, which is what tells two groups apart when
+their bindings are alike.  :class:`Bindings` wraps a tree, and :func:`dumps`/:func:`loads`
+convert to and from shex.js's JSON.
 
 **Collecting** happens after validation succeeds.  PyShEx checks that *some* partition
 of each node's neighbourhood satisfies the schema but does not say which, so the
@@ -28,6 +39,7 @@ import math
 import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
+from typing import Any
 
 from ShExJSG import ShExJ
 from rdflib import BNode, Graph, Literal, URIRef, XSD
@@ -40,6 +52,8 @@ from pyshex.shapemap_structure_and_language.p3_shapemap_structure import START
 from pyshex.shexmap import functions
 
 MAP_EXTENSION = "http://shex.io/extensions/Map/#"
+
+NODE_KEY = "@node"           # in an iteration's bindings: the node the nested shape matched
 
 MAX_ALTERNATIVES = 20        # distinct binding trees to collect before giving up counting
 MAX_PARTITIONS = 10_000      # partitions of one neighbourhood to try
@@ -60,11 +74,13 @@ class AmbiguousBindingsError(MapValidationError):
 # -- binding trees ----------------------------------------------------------------------
 
 class Bindings:
-    """A binding tree (see module docstring), and how many distinct ones the input allowed."""
+    """A binding tree (see module docstring), how many distinct ones the input allowed, and
+    the triples the schema matched to make it (``matched``: the subgraph it selected)."""
 
-    def __init__(self, tree, alternatives: int = 1) -> None:
+    def __init__(self, tree, alternatives: int = 1, matched: frozenset = frozenset()) -> None:
         self.tree = tree
         self.alternatives = alternatives
+        self.matched = matched
 
     @property
     def ambiguous(self) -> bool:
@@ -106,7 +122,8 @@ def normalize(tree) -> list[dict[str, Node]]:
     list of their readings) is copied into every frame the sibling lists produce."""
     def walk(node):
         if not isinstance(node, list):
-            return [dict(node)], True, {k: 1 for k in node}
+            own = {k: v for k, v in node.items() if k != NODE_KEY}
+            return [own], True, {k: 1 for k in own}
         kids = [walk(k) for k in node]
         counts: dict[str, int] = {}
         for _, _, c in kids:
@@ -278,30 +295,49 @@ def triple_constraints(se, cntxt: Context | None = None) -> Iterator[ShExJ.Tripl
 
 @dataclass
 class _Record:
-    """Bindings made while matching one node: its own variables and nested matches."""
+    """One scope: the bindings made while matching one node, one list of iteration records
+    per repeated constraint or group that matched under it, and the triples matched here."""
     vars: dict[str, Node] = field(default_factory=dict)
-    children: list[_Record] = field(default_factory=list)
-    frame: bool = False
+    lists: list[list[_Record]] = field(default_factory=list)
+    triples: set = field(default_factory=set)
 
     def merged(self, other: _Record) -> _Record:
-        return _Record({**self.vars, **other.vars}, self.children + other.children, self.frame)
+        return _Record({**self.vars, **other.vars}, self.lists + other.lists, self.triples | other.triples)
+
+    def all_triples(self) -> frozenset:
+        """The triples matched here and in every nested scope."""
+        out = set(self.triples)
+        for lst in self.lists:
+            for r in lst:
+                out |= r.all_triples()
+        return frozenset(out)
 
     def empty(self) -> bool:
-        return not self.vars and all(c.empty() for c in self.children)
+        return not (self.vars.keys() - {NODE_KEY}) and all(r.empty() for lst in self.lists for r in lst)
 
     def tree(self):
-        """Non-repeated nested matches merge into this object; repeated ones become a list."""
-        merged = dict(self.vars)
-        frames = []
-        for c in self.children:
-            ct = c.tree()
-            if not c.frame and isinstance(ct, dict) and not (merged.keys() & ct.keys()):
-                merged.update(ct)
-            else:
-                frames.append(ct)
-        if not frames:
-            return merged
-        return ([merged] if merged else []) + [frames]
+        """The scope as a binding tree: the object alone, or ``[object, list, ...]``, each
+        list's elements uniform (all objects or all arrays)."""
+        own = dict(self.vars)
+        if not self.lists:
+            return own
+        out = [own]
+        for lst in self.lists:
+            iterations = [r.tree() for r in lst]
+            if any(isinstance(t, list) for t in iterations):
+                iterations = [t if isinstance(t, list) else [t] for t in iterations]
+            out.append(iterations)
+        return out
+
+
+def _by_first(items) -> list:
+    """The items' expressions, in order of first occurrence."""
+    seen, out = set(), []
+    for item in items:
+        if id(item[1]) not in seen:
+            seen.add(id(item[1]))
+            out.append(item[1])
+    return out
 
 
 def _product(alternatives: list[list[_Record]], limit: int) -> list[_Record]:
@@ -397,15 +433,17 @@ class _Extractor:
             [('in', t) for t in g.triples((None, None, n)) if (t[1], True) in keys])
         extras = {URIRef(str(e)) for p in parts for e in (getattr(p, 'extra', None) or [])}
 
+        exprs = [p.expression for p in parts if p.expression is not None]
+        repeated = self._repeated_expressions(exprs)
         results: list[_Record] = []
         tried = 0
-        for items, rest in self._parts(n, [p.expression for p in parts if p.expression is not None], matchables):
+        for items, rest in self._parts(n, exprs, matchables):
             tried += 1
             if tried > MAX_PARTITIONS:
                 break
             if not self._valid_remainder(n, rest, extras, tcs):
                 continue
-            results.extend(self._bind_items(items))
+            results.extend(self._bind_items(items, repeated))
             results = _dedupe(results, self.limit)
             if len(results) >= self.limit:
                 break
@@ -417,6 +455,25 @@ class _Extractor:
                 f"no partition of the neighbourhood of {n} matches shape {getattr(S, 'id', None) or '(inline)'}"
                 + (f" within {MAX_PARTITIONS} partitions" if tried > MAX_PARTITIONS else ""))
         return results
+
+    def _repeated_expressions(self, exprs: list) -> list:
+        """The repeated constraints and groups directly under ``exprs`` (not inside another
+        repeated expression), in schema order: one list each in the scope's tree."""
+        out: list = []
+
+        def walk(e) -> None:
+            if isinstance(e, str):
+                e = self.cntxt.tripleExprFor(e)
+            if e is None:
+                return
+            if is_repeated(e):
+                out.append(e)
+            elif isinstance(e, (ShExJ.EachOf, ShExJ.OneOf)):
+                for sub in e.expressions:
+                    walk(sub)
+        for e in exprs:
+            walk(e)
+        return out
 
     def _own_tcs(self, S: ShExJ.Shape) -> list[ShExJ.TripleConstraint]:
         """Triple constraints of S's own expression, not of the shapes nested in them."""
@@ -452,7 +509,8 @@ class _Extractor:
 
     def _match(self, n: Node, expr, available: frozenset):
         """Ways ``expr`` can match some of ``available``: (items, remaining) pairs, greediest
-        first.  Items are ('tc', tc, triple) or ('group', items) for a repeated group's iteration."""
+        first.  Items are ('tc', tc, triple) or ('group', expr, items) for one iteration of a
+        repeated group."""
         if isinstance(expr, str):               # an inclusion: &label
             expr = self.cntxt.tripleExprFor(expr)
         if isinstance(expr, ShExJ.TripleConstraint):
@@ -476,7 +534,7 @@ class _Extractor:
             for one, rest in self._once(n, expr, available):
                 if rest == available and count >= min_:
                     continue            # an iteration that matches nothing adds nothing
-                wrapped = [('group', one)] if repeated else one
+                wrapped = [('group', expr, one)] if repeated else one
                 if rest == available:   # matched nothing but is required: count it once
                     yield wrapped, rest
                     continue
@@ -498,32 +556,54 @@ class _Extractor:
     def _value(tc: ShExJ.TripleConstraint, t) -> Node:
         return t[0] if tc.inverse else t[2]
 
-    def _bind_items(self, items) -> list[_Record]:
-        """Alternative records for one partition's items."""
+    def _bind_items(self, items, repeated: list) -> list[_Record]:
+        """Alternative records for one partition's items: each of the scope's ``repeated``
+        expressions makes one list, with an iteration per item (empty when it matched
+        nothing); a non-repeated constraint binds into the scope itself."""
+        by_expr: dict[int, list] = {}
         alternatives: list[list[_Record]] = []
         for item in items:
-            if item[0] == 'group':          # one iteration of a repeated group: one frame
-                opts = []
-                for r in self._bind_items(item[1]):
-                    iteration = _Record(r.vars, r.children, True)
-                    opts.append(_Record(children=[iteration]) if not iteration.empty() else _Record())
-                alternatives.append(opts or [_Record()])
+            expr = item[1]
+            if item[0] == 'group' or is_repeated(expr):
+                by_expr.setdefault(id(expr), []).append(item)
                 continue
             _, tc, t = item
             value = self._value(tc, t)
             lifted = self.lift(tc, value)
-            per_value = is_repeated(tc)
-            if references_shape(tc.valueExpr):
+            if references_shape(tc.valueExpr):      # a nested scope: merge it into this one
                 opts = []
                 for sub in self.shape_expr(value, tc.valueExpr):
-                    child = _Record({**lifted, **sub.vars}, sub.children, per_value)
-                    opts.append(_Record(children=[child]) if not child.empty() else _Record())
+                    if lifted.keys() & sub.vars.keys():
+                        opts.append(_Record(lifted, [[sub]], {t}))  # a name clash: keep it apart
+                    else:
+                        opts.append(_Record({**lifted, **sub.vars}, sub.lists, {t} | sub.triples))
                 alternatives.append(opts)
-            elif per_value:
-                alternatives.append([_Record(children=[_Record(lifted, frame=True)]) if lifted else _Record()])
             else:
-                alternatives.append([_Record(lifted)])
+                alternatives.append([_Record(lifted, triples={t})])
+        for expr in repeated + [e for e in _by_first(items) if id(e) in by_expr and e not in repeated]:
+            per_iteration = [self._iteration(it) for it in by_expr.pop(id(expr), [])]
+            opts = []
+            for combo in itertools.product(*per_iteration):
+                kept = [r for r in combo if not r.empty()]
+                dropped = set().union(*(r.triples for r in combo if r.empty())) if combo else set()
+                opts.append(_Record(lists=[kept], triples=dropped))     # an iteration that bound nothing still matched
+                if len(opts) >= self.limit:
+                    break
+            alternatives.append(opts or [_Record(lists=[[]])])
         return _product(alternatives, self.limit)
+
+    def _iteration(self, item) -> list[_Record]:
+        """Alternative scopes for one iteration of a repeated constraint or group."""
+        if item[0] == 'group':
+            expr = item[1]
+            return self._bind_items(item[2], self._repeated_expressions(list(expr.expressions))) or [_Record()]
+        _, tc, t = item
+        value = self._value(tc, t)
+        lifted = self.lift(tc, value)
+        if references_shape(tc.valueExpr):
+            return [_Record({NODE_KEY: value, **lifted, **sub.vars}, sub.lists, {t} | sub.triples)
+                    for sub in self.shape_expr(value, tc.valueExpr)]
+        return [_Record(lifted, triples={t})]
 
     def lift(self, tc, value) -> dict[str, Node]:
         bound: dict[str, Node] = {}
@@ -580,8 +660,8 @@ def bind_all(graph: Graph, schema: str | ShExJ.Schema, focus: str | Node, start=
         raise MapValidationError(f"{focus} does not conform: " + "\n".join(reasons))
     extractor = _Extractor(Context(graph, schema), prefixes, limit)
     records = extractor.shape_expr(focus, label if label is not START else START)
-    trees = [r.tree() for r in _dedupe(records, limit)]
-    return [Bindings(t, alternatives=len(trees)) for t in trees]
+    kept = _dedupe(records, limit)
+    return [Bindings(r.tree(), alternatives=len(kept), matched=r.all_triples()) for r in kept]
 
 
 def bind(graph: Graph, schema: str | ShExJ.Schema, focus: str | Node, start=None,

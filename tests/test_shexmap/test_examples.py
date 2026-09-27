@@ -10,7 +10,7 @@ import pytest
 from rdflib import BNode, Graph, URIRef
 from rdflib.compare import isomorphic
 
-from pyshex.shexmap import AmbiguousBindingsError, bind, bind_all, dumps, loads, materialize
+from pyshex.shexmap import NODE_KEY, AmbiguousBindingsError, bind, bind_all, dumps, loads, materialize, normalize
 
 HERE = Path(__file__).parent
 EXAMPLES = HERE / "examples"
@@ -74,15 +74,97 @@ def example(request):
     return entry, bindings
 
 
+def without_nodes(obj):
+    """The tree without its ``@node`` keys, which shex.js does not write (yet)."""
+    if isinstance(obj, dict):
+        return {k: v for k, v in obj.items() if k != NODE_KEY}
+    if isinstance(obj, list):
+        return [without_nodes(e) for e in obj]
+    return obj
+
+
+def canonical(obj):
+    """``without_nodes``, with blank-node values reduced to a marker (labels do not survive
+    a trip through materialization) and each list's iterations sorted (ShEx matches bags;
+    the order a neighbourhood is listed in follows the nodes' labels, which is arbitrary)."""
+    if isinstance(obj, dict):
+        return {k: ("_:" if isinstance(v, str) and v.startswith("_:") else v)
+                for k, v in obj.items() if k != NODE_KEY}
+    if isinstance(obj, list):
+        items = [canonical(e) for e in obj]
+        return sorted(items, key=lambda e: json.dumps(e, sort_keys=True))
+    return obj
+
+
+def nodes_in(obj) -> list[dict]:
+    """Every object of the tree that carries ``@node``."""
+    if isinstance(obj, dict):
+        return [obj] if NODE_KEY in obj else []
+    if isinstance(obj, list):
+        return [d for e in obj for d in nodes_in(e)]
+    return []
+
+
 def test_bindings_match_shexjs(example):
     entry, bindings = example
     if "expectedBindingsURL" not in entry:
         pytest.skip("no shex.js bindings recorded")
     expected = json.loads(path(entry, entry["expectedBindingsURL"]).read_text(encoding="utf-8"))
+    got = without_nodes(bindings.to_json())
     if label(entry) in BINDINGS_LAYOUT_DIFFERS:
-        assert bindings.to_json() != expected   # if this starts failing, the layouts converged
+        assert got != expected   # if this starts failing, the layouts converged
     else:
-        assert bindings.to_json() == expected
+        assert got == expected
+
+
+# examples whose input schema has a repeated shape-valued constraint, so their trees have lists
+# of iterations, each of which must say which node it matched
+HAS_ITERATIONS = {"BPPatient multi-bindings / simple", "BPPatient 2 levels / simple", "splits / Ann-phone-mbox",
+                  "splits / Ann-mbox-phone", "inverse in / Ann's heart rate", "inverse out / Ann's chart",
+                  "EXTENDS / clinic"}
+BP = "http://shex.io/extensions/Map/#BPDAM-"
+
+
+def test_iterations_carry_the_node_they_matched(example):
+    entry, bindings = example
+    found = nodes_in(bindings.to_json())
+    if label(entry) not in HAS_ITERATIONS:
+        assert found == []
+        return
+    assert found
+    for d in found:
+        assert isinstance(d[NODE_KEY], str)                     # an IRI or a _:label, never a literal
+    if label(entry) == "BPPatient 2 levels / simple":
+        # the constraint that made the list also bound the node itself: the two must agree
+        assert {d[NODE_KEY] for d in found} == {d.get(BP + "reports") or d.get(BP + "bp") for d in found}
+        assert len(found) == 6                                  # two reports, four readings
+    if label(entry) == "BPPatient multi-bindings / simple":
+        assert all(d[NODE_KEY] == d[BP + "XXX"] for d in found)
+    if label(entry) == "inverse in / Ann's heart rate":
+        assert all(d[NODE_KEY].startswith("http://") for d in found)   # ^:subject binds subjects
+
+
+def test_nodes_survive_json(example):
+    entry, bindings = example
+    assert loads(dumps(bindings)).to_json() == bindings.to_json()
+    assert normalize(loads(dumps(bindings)).tree) == bindings.frames()
+    assert not any(NODE_KEY in f for f in bindings.frames())
+
+
+@pytest.mark.parametrize("entry", MANIFEST, ids=label)
+def test_bindings_survive_a_round_trip_through_the_input_schema(entry):
+    """bind after materialize after bind is bind: materializing bindings with the *input*
+    schema gives a graph that binds to the same bindings, i.e. a schema maps to itself.
+    Compared as the set of parses, since an ambiguous input may parse in another order."""
+    graph = input_graph(entry)
+    _, start = node_and_shape(entry["queryMap"])
+    focus = focus_node(entry, graph)
+    schema = text(entry, "schema")
+    before = {json.dumps(canonical(b.to_json()), sort_keys=True) for b in bind_all(graph, schema, focus, start=start)}
+    root = BNode() if isinstance(focus, BNode) else focus
+    out = materialize(schema, bind(graph, schema, focus, start=start), root, start=start)
+    after = {json.dumps(canonical(b.to_json()), sort_keys=True) for b in bind_all(out, schema, root, start=start)}
+    assert after == before, out.serialize(format="turtle")
 
 
 def test_output_matches_shexjs(example):
