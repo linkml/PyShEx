@@ -145,6 +145,8 @@ def normalize(tree) -> list[dict[str, Node]]:
         out = []
         for frames, leaf in ordered:
             out.extend(f if leaf else {**shared, **f} for f in frames)
+        if not out and shared:      # a scope whose lists are all empty still has its own bindings
+            out.append(shared)
         return out, False, counts
     return walk(tree)[0]
 

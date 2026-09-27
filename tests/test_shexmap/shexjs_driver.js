@@ -37,7 +37,8 @@ if (mode === "bind") {
   }
   const res = resultMapToShapeExprTest(validator.validateShapeMap([{node: focus, shape: start}]));
   if (res.errors) { console.error(JSON.stringify(res.errors, null, 1)); process.exit(2); }
-  process.stdout.write(JSON.stringify(ShExUtil.valToExtension(res, Mapper.url)) + "\n");
+  // the scope layout with @node where the checkout has it (branch shexmap-scopes), else the legacy tree
+  process.stdout.write(JSON.stringify(Mapper.bindingTree ? Mapper.bindingTree(res) : ShExUtil.valToExtension(res, Mapper.url)) + "\n");
 } else if (mode === "materialize") {
   const bindings = JSON.parse(Fs.readFileSync(dataPath, "utf8"));
   const staticVars = staticsPath ? JSON.parse(Fs.readFileSync(staticsPath, "utf8")) : {};

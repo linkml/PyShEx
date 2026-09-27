@@ -4,10 +4,9 @@ Set ``SHEXJS_EXTENSION_MAP`` to the package directory of a built shex.js checkou
 (``…/shex.js/packages/extension-map``) to run them; they are skipped otherwise.  Each
 manifest example is bound and materialized on both sides and the results compared:
 
-* the frames of shex.js's bindings equal PyShEx's (the trees may differ in layout, and
-  shex.js does not write ``@node``);
-* shex.js materializes PyShEx's bindings JSON to the expected graph (``@node`` stripped, as
-  shex.js does not know the key yet; set ``SHEXJS_KEEP_NODE=1`` to hand it over as written);
+* the frames of shex.js's bindings equal PyShEx's (the trees themselves are compared, blank
+  node labels aside, in ``test_examples.py`` against the bindings shex.js recorded);
+* shex.js materializes PyShEx's bindings JSON, ``@node`` included, to the expected graph;
 * PyShEx materializes shex.js's bindings to the expected graph.
 """
 import json
@@ -21,7 +20,7 @@ from rdflib.compare import isomorphic
 
 from pyshex.shexmap import bind, loads, materialize, normalize
 from tests.test_shexmap.test_examples import (MANIFEST, expected_output, focus_node, input_graph, label,
-                                              node_and_shape, output_root, text, without_nodes)
+                                              node_and_shape, output_root, text)
 
 SHEXJS = os.environ.get("SHEXJS_EXTENSION_MAP")
 DRIVER = Path(__file__).parent / "shexjs_driver.js"
@@ -58,10 +57,7 @@ def canonical_frames(frames) -> list:
 
 
 # known divergences, as strict xfails
-DIVERGES = {
-    "EXTENDS / clinic": "shex.js's valToExtension does not collect Map results through EXTENDS: it binds "
-                        "nothing for this example, where PyShEx binds through the extension each member satisfies",
-}
+DIVERGES: dict[str, str] = {}      # label -> why the two implementations are expected to differ
 
 
 @pytest.fixture(scope="module", ids=label,
@@ -92,8 +88,7 @@ def test_shexjs_materializes_our_bindings(example):
     _, start = node_and_shape(entry["queryMap"])
     ours = bind(graph, text(entry, "schema"), focus_node(entry, graph), start=start)
     root, shape = output_root(entry)
-    tree = ours.to_json() if os.environ.get("SHEXJS_KEEP_NODE") else without_nodes(ours.to_json())
-    (d / "ours.json").write_text(json.dumps(tree), encoding="utf-8")
+    (d / "ours.json").write_text(json.dumps(ours.to_json()), encoding="utf-8")
     nt = shexjs("materialize", str(d / "out.shex"), str(d / "ours.json"), node_arg(root), shape or "START")
     got = Graph().parse(data=nt, format="nt")
     assert isomorphic(got, expected_output(entry)), nt

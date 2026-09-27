@@ -18,9 +18,8 @@ MANIFEST = [dict(e, _dir=str(d)) for d in (HERE / "examples", HERE / "pyshex-exa
             for e in json.loads((d / "manifest.json").read_text(encoding="utf-8"))]
 TURTLE_BASE = "http://a.example/turtle/"   # the base shex.js's test runner parses data with
 
-# shex.js splits one binding record across two nesting levels in this example; PyShEx keeps
-# a report's variables together.  Both materialize to the expected graph.
-BINDINGS_LAYOUT_DIFFERS = {"BPPatient 2 levels / simple"}
+# the stored bindings are what shex.js writes (packages/extension-map/examples, branch
+# shexmap-scopes): the scope layout with @node; blank-node labels are the parser's
 
 
 def label(entry) -> str:
@@ -106,15 +105,20 @@ def nodes_in(obj) -> list[dict]:
 
 
 def test_bindings_match_shexjs(example):
+    """The same tree as shex.js writes, @node included, blank-node labels aside."""
     entry, bindings = example
     if "expectedBindingsURL" not in entry:
         pytest.skip("no shex.js bindings recorded")
     expected = json.loads(path(entry, entry["expectedBindingsURL"]).read_text(encoding="utf-8"))
-    got = without_nodes(bindings.to_json())
-    if label(entry) in BINDINGS_LAYOUT_DIFFERS:
-        assert got != expected   # if this starts failing, the layouts converged
-    else:
-        assert got == expected
+    assert with_bnode_marker(bindings.to_json()) == with_bnode_marker(expected)
+
+
+def with_bnode_marker(obj):
+    if isinstance(obj, dict):
+        return {k: ("_:" if isinstance(v, str) and v.startswith("_:") else v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [with_bnode_marker(e) for e in obj]
+    return obj
 
 
 # examples whose input schema has a repeated shape-valued constraint, so their trees have lists
