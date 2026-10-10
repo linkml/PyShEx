@@ -1,4 +1,5 @@
-"""The threaded materializer, ported from shex.js's ThreadedMaterializer-test.js."""
+"""The materializer's choices, failures and reports; ported from shex.js's
+ThreadedMaterializer-test.js, with the frame-cursor cases restated for iteration scopes."""
 import json
 from pathlib import Path
 
@@ -61,12 +62,17 @@ CONTACTS = [{A + "name": lit("Ann")},
              {A + "use": lit("home"), A + "tel": lit("+1")}]]
 
 
-def test_cross_frame_pairing_does_not_beat_in_frame_consumption():
+def test_each_contact_keeps_its_own_use():
     m, triples = run(CARD, CONTACTS, "tag:card")
     assert sorted(str(o) for _, p, o in triples if str(p) == A + "val") == ["+1", "h@x", "w@x"]
     assert m.chosen.consumed == 7
-    mix = [a for a in m.accepts if a.skipped == 4]
-    assert mix and mix[0].consumed == 3        # frame 0's :use with frame 2's :tel, demoted
+    pairs = {(str(o), str(v)) for s, p, o in triples if str(p) == A + "use"
+             for s2, p2, v in triples if s2 == s and str(p2) == A + "val"}
+    assert pairs == {("work", "w@x"), ("home", "h@x"), ("home", "+1")}
+    # no alternative pairs a contact's :use with another contact's number
+    for a in m.accepts:
+        assert {(str(o), str(v)) for s, p, o in a.triples if str(p) == A + "use"
+                for s2, p2, v in a.triples if s2 == s and str(p2) == A + "val"} <= pairs
 
 
 def test_constant_only_variants_collapse_onto_one_accept():

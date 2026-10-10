@@ -1,54 +1,78 @@
-"""Threaded materialization: build RDF conforming to an output schema from bindings.
+"""Materialization by iteration scopes: build RDF conforming to an output schema from bindings.
 
-A port of shex.js's ``ThreadedMaterializer`` (packages/extension-map/doc/threaded-materializer.md).
+The binding tree is read as a **scope tree** (:mod:`pyshex.shexmap.scopes`): a scope's own
+bindings, and one list of iteration scopes per repeated constraint or group of the input.
+Nothing is flattened and nothing is consumed:
 
-* The binding tree is flattened to a sequence of **frames** (:func:`normalize`), read
-  through a cursor that stays on the current frame while it has an unused binding for a
-  variable and otherwise scans forward, never back.
-* Each output shape compiles to an **NFA** with four kinds of state: ``TC`` (emit one
-  instance of a triple constraint), ``Split`` (OneOf / ShapeOr, in priority order),
-  ``Rept`` (cardinality) and ``Match``.  A shape-valued constraint invents a blank node,
-  links it and calls the nested shape's NFA; ``Match`` returns from the call.
-* A **thread** is an immutable configuration -- state, call stack, cursor, emitted
-  triples.  One whose variable is unbound just dies, taking its emissions and cursor
-  marks with it, so a failed optional group or disjunct never disturbs its siblings.
-* Threads run depth-first in greedy order (another repetition, then the emitting arm of
-  an optional, then the first disjunct), except that a lookup which has to **advance to
-  a later frame, abandoning unused bindings there,** is deferred until the alternatives
-  that can still use the current frame have been explored.  An advance that abandons
-  nothing is not a choice, so it is not deferred.
-* Every accepting thread is ranked; :meth:`ThreadedMaterializer.materialize` returns the
-  one that consumed the most bindings (ties: fewest bindings skipped by cursor advances,
-  then most triples, then discovery order), or whichever ``prefer`` ranks first.  The
-  best ``max_accepts`` are kept in :attr:`~ThreadedMaterializer.accepts`; reaching that
-  many does not stop the search, only a perfect accept or the step budgets do.
+* A constraint with a Map variable **reads** it from the scope it is evaluated at, or from
+  the nearest ancestor scope that binds it.  Reading marks nothing, so a parent's binding
+  can be read in every item, and twice in one.  A variable bound nowhere on that chain
+  fails the constraint.
+* A **repetition** in the output schema iterates one list of the input: the deepest list
+  its body's variables are bound at (nested repetitions count through their parent list).
+  Its body runs once per iteration of that list, in list order, at that iteration's
+  scope; an iteration whose body fails is skipped; the count of successful iterations
+  must reach the minimum, and the repetition stops at the maximum.  A body whose
+  variables are all bound at or above the current scope runs once, there.  A body whose
+  variables live in two lists neither of which contains the other is ill-formed, and
+  says so.
+* **Choices** (``OneOf``, ``ShapeOr``, an optional constraint, a shape with extensions)
+  yield alternatives, per scope; the alternatives of the parts of a group or conjunction
+  combine by product, pruned to the best ``max_accepts`` as they combine.
+* Every complete alternative is an :class:`Accept`; :meth:`ThreadedMaterializer.materialize`
+  returns the one that read the most distinct bindings (ties: most triples, then schema
+  order), or whichever ``prefer`` ranks first, and keeps the rest in
+  :attr:`~ThreadedMaterializer.accepts`.
+* A value a Map code produces must **satisfy the constraint's value expression** when
+  that is a node constraint (datatype, value set, facets, node kind).  A plain literal
+  whose lexical form is valid for the constraint's datatype is retyped to it, so what
+  ``regex()`` and ``hashmap()`` produce can land in a typed constraint; any other mismatch
+  fails the constraint like an unbound variable, so an optional or another disjunct can
+  take over (``check_values=False`` turns this off).
+* A shape-valued constraint that also carries a Map variable **names** its node: the
+  bound value is the node and the nested shape is materialized on it.  One that carries
+  ``%Map:{ id(v:a, v:b) %}`` is **keyed**: its node is a function of the shape and the
+  values read for the key, so two constraints, or two iterations, with the same key make
+  the same node and their arcs merge -- grouping by value, and a shared reference.  A
+  key of one IRI or blank node is that node itself; ``id(@node)`` reuses the input node
+  the enclosing iteration matched, so a schema maps a graph onto itself node for node.
+  Otherwise the node is a blank node determined by the root, the constraint, and the
+  scope (its ``@node`` when it is an iteration, else its path), so two runs over the same
+  bindings agree, and materializing the same root twice adds nothing.
 
-Beyond shex.js: ``EXTENDS`` in the output schema materializes the extended shapes' triple
-constraints on the same node, and a reference to a shape that has extensions may
-materialize any non-abstract one of them -- the threads decide which fits the bindings.
+This replaces the frame-cursor search ported from shex.js's ``ThreadedMaterializer`` (kept
+as the class name); ``docs/shexmap-semantics-draft.md`` is the normative description and
+``docs/shexmap-structural-plan.md`` the reasons.  ``EXTENDS`` in the output schema
+materializes the extended shapes' constraints on the same node, and a reference to a
+shape that has extensions may materialize any non-abstract one of them.
 """
 from __future__ import annotations
 
-import uuid
+import hashlib
+import itertools
+import math
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass
 from typing import Any
 
 from ShExJSG import ShExJ
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.term import Node
 
+from pyshex.parse_tree.parse_node import ParseNode
+from pyshex.shape_expressions_language.p5_4_node_constraints import satisfiesNodeConstraint
 from pyshex.shape_expressions_language.p5_context import Context
 from pyshex.shapemap_structure_and_language.p3_shapemap_structure import START
 from pyshex.shexmap import functions
 from pyshex.shexmap.bindings import (Bindings, declaration_of, expression_of, extension_candidates, map_actions,
-                                     normalize, references_shape, shape_parts, shexc_prefixes, term_from_json)
+                                     references_shape, shape_parts, shexc_prefixes, term_from_json)
+from pyshex.shexmap.scopes import BindingTreeError, ListPath, Scope, ScopeTree
 
 UNBOUNDED = -1
 
 
 class MaterializationError(ValueError):
-    """No thread could build the requested shape from the bindings.
+    """No alternative materializes the requested shape from the bindings.
 
     :ivar failures: the dead ends met on the way, deepest last
     :ivar report: see :attr:`ThreadedMaterializer.last_report`
@@ -68,141 +92,52 @@ def _describe(f: dict) -> str:
     return f"{f.get('predicate', '')} {what} {f.get('error', 'unbound')}".strip()
 
 
-# -- the frame cursor -------------------------------------------------------------------
+# -- results ------------------------------------------------------------------------------
 
 @dataclass(frozen=True)
-class Cursor:
-    idx: int = 0                                  # current frame
-    used: frozenset = frozenset()                 # (frame, variable) pairs consumed
-    n: int = 0                                    # frame bindings consumed
-    skipped: int = 0                              # unused bindings abandoned by advancing
+class Result:
+    """One way to materialize something: its triples, where each came from, and the bindings
+    it read."""
+    quads: tuple = ()
+    reads: frozenset = frozenset()          # (scope path, variable)
+    sources: tuple = ()                     # parallel to quads: see Accept.provenance
+
+    def then(self, other: Result) -> Result:
+        return Result(self.quads + other.quads, self.reads | other.reads, self.sources + other.sources)
 
 
-def cursor_get(frames: list[dict], statics: Mapping[str, Node], cursor: Cursor, var: str):
-    """(value, new cursor) for ``var``, or None when no unused binding remains."""
-    if var in statics:                            # static vars: always there, never used up
-        return statics[var], cursor
-    for i in range(cursor.idx, len(frames)):
-        if var in frames[i] and (i, var) not in cursor.used:
-            used = cursor.used | {(i, var)}
-            skipped = cursor.skipped + sum(1 for j in range(cursor.idx, i) for v in frames[j]
-                                           if (j, v) not in used)
-            return frames[i][var], Cursor(i, used, cursor.n + 1, skipped)
-    return None
+EMPTY = Result()
 
 
-# -- NFAs --------------------------------------------------------------------------------
-
-@dataclass
-class State:
-    type: str                                     # TC | Split | Rept | Match
-    outs: list[int] = field(default_factory=list)
-    tc: Any = None
-    min: int = 1
-    max: float = 1
-    skippable: bool = False
+def _source(tc, scope: Scope, reads=(), statics=(), **kind) -> dict:
+    """The provenance of one triple: the constraint, the input scope it was evaluated at (its
+    path and the node it matched), the bindings and static variables read for it, and how
+    the object arose."""
+    return {'tc': tc, 'predicate': str(tc.predicate), 'scope': scope.path, 'node': scope.nearest_node(),
+            'reads': tuple(reads), 'statics': tuple(statics), **kind}
 
 
-@dataclass
-class NFA:
-    states: list[State]
-    start: int
-
-
-def _clone_into(combined: list[State], nfa: NFA) -> int:
-    offset = len(combined)
-    for s in nfa.states:
-        combined.append(replace(s, outs=[o + offset for o in s.outs]))
-    return offset
-
-
-def _concat(parts: list[NFA]) -> NFA:
-    """Run each part in turn against the same subject."""
-    if not parts:
-        return NFA([State('Match')], 0)
-    states: list[State] = []
-    offsets = [_clone_into(states, p) for p in parts]
-    for i in range(len(parts) - 1):         # each part's Match (state 0) hands over to the next
-        states[offsets[i]] = State('Split', outs=[offsets[i + 1] + parts[i + 1].start])
-    return NFA(states, offsets[0] + parts[0].start)
-
-
-def _split(parts: list[NFA]) -> NFA:
-    """Fork over the parts, in priority order."""
-    if not parts:
-        return NFA([State('Match')], 0)
-    states: list[State] = []
-    outs = [_clone_into(states, p) + p.start for p in parts]
-    states.append(State('Split', outs=outs))
-    return NFA(states, len(states) - 1)
-
-
-# -- threads -----------------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class CallFrame:
-    nfa: NFA
-    outs: tuple
-    subject: Node
-    repeats: tuple
-    parent: CallFrame | None
-    skippable: bool
-    quads_mark: Any
-    consumed_mark: int
-
-
-@dataclass(frozen=True)
-class Thread:
-    nfa: NFA
-    state: int
-    subject: Node
-    repeats: tuple                              # sorted ((state, (count, consumed_at)), ...)
-    call_stack: CallFrame | None
-    cursor: Cursor
-    quads: Any                                  # persistent list: (triple, previous) or None
-    bnode: int
-
-
-def _repeats_get(repeats: tuple, state: int):
-    for k, v in repeats:
-        if k == state:
-            return v
-    return None
-
-
-def _repeats_set(repeats: tuple, state: int, value) -> tuple:
-    kept = tuple((k, v) for k, v in repeats if k != state)
-    return tuple(sorted(kept + ((state, value),))) if value is not None else kept
-
-
-def _collect(quads) -> list[tuple[Node, Node, Node]]:
-    out = []
-    while quads is not None:
-        out.append(quads[0])
-        quads = quads[1]
-    out.reverse()
-    seen, kept = set(), []
-    for q in out:
-        if q not in seen:
-            seen.add(q)
-            kept.append(q)
-    return kept
-
-
-def _depth(call_stack: CallFrame | None) -> int:
-    d = 0
-    while call_stack is not None:
-        d, call_stack = d + 1, call_stack.parent
-    return d
+def _rank(r: Result) -> tuple[int, int]:
+    return (len(r.reads), len(r.quads))
 
 
 @dataclass
 class Accept:
-    """An accepting thread's result."""
+    """A complete materialization.
+
+    :ivar provenance: one record per triple: ``tc`` and ``predicate`` (the output constraint),
+        ``scope`` and ``node`` (the input iteration's path, and the node it matched), ``reads``
+        (the ``(scope path, variable)`` bindings read for the object), ``statics`` (the static
+        variables read for it), and one of
+        ``variable``/``code`` (a Map code's value), ``constant`` (a value the schema names),
+        ``structural`` (a link to a minted node), ``named`` (a node a variable names) or
+        ``keyed`` (an ``id()`` node) -- the correspondence between output and input
+    """
     triples: list[tuple[Node, Node, Node]]
-    consumed: int
-    skipped: int
-    used: frozenset
+    consumed: int                           # distinct bindings read
+    skipped: int                            # always 0: nothing is passed over any more
+    used: frozenset                         # the (scope path, variable) addresses read
+    provenance: list[dict] = None
 
 
 class ThreadedMaterializer:
@@ -210,16 +145,16 @@ class ThreadedMaterializer:
 
     :param schema: output schema, as ShExC text or a parsed ShExJ schema
     :param prefixes: prefixes for ShExMap variable names; read from ShExC text when omitted
-    :param static_vars: variable values available everywhere, never used up
+    :param static_vars: variable values available everywhere
     :param prefer: comparator over :class:`Accept` s, negative when the first is better
-    :param max_repeat: cap on the iterations of one repetition; ``None`` (the default)
-        leaves ``*`` and ``+`` bounded only by the bindings, which the progress guard on
-        repetitions makes safe
-    :param max_call_depth: cap on nested shape calls (cyclic references)
-    :param max_steps: cap on thread steps for the whole search
-    :param max_accepts: how many of the best accepts to keep in :attr:`accepts`
-    :param explore_steps: how many steps to keep searching after the last improvement
-    :param require_bindings_in_subshapes: drop optional subshapes that consume no binding
+    :param max_repeat: cap on the iterations of one repetition; ``None`` for none
+    :param max_call_depth: cap on nested shape calls (recursive schemas)
+    :param max_accepts: how many alternatives to keep, at every level and at the end
+    :param require_bindings_in_subshapes: drop optional subshapes that read no binding
+    :param check_values: check bound values against node constraints, retyping plain
+        literals whose lexical form fits the datatype
+    :param max_steps, explore_steps: accepted for compatibility; the search has no budget
+        to spend any more
     """
 
     def __init__(self, schema: str | ShExJ.Schema, prefixes: Mapping[str, str] | None = None,
@@ -227,7 +162,7 @@ class ThreadedMaterializer:
                  prefer: Callable[[Accept, Accept], int] | None = None,
                  max_repeat: int | None = None, max_call_depth: int = 50, max_steps: int = 1_000_000,
                  max_accepts: int = 20, explore_steps: int = 10_000,
-                 require_bindings_in_subshapes: bool = False) -> None:
+                 require_bindings_in_subshapes: bool = False, check_values: bool = True) -> None:
         from pyshex.utils.schema_loader import SchemaLoader
         if isinstance(schema, str):
             prefixes = {**shexc_prefixes(schema), **(prefixes or {})}
@@ -240,271 +175,142 @@ class ThreadedMaterializer:
         self.statics = {k: (v if isinstance(v, Node) else term_from_json(v)) for k, v in (static_vars or {}).items()}
         self.prefer = prefer
         self.max_repeat, self.max_call_depth = max_repeat, max_call_depth
-        self.max_steps, self.max_accepts, self.explore_steps = max_steps, max_accepts, explore_steps
+        self.max_accepts = max_accepts
         self.require_bindings_in_subshapes = require_bindings_in_subshapes
-        self._cache: dict[int, NFA] = {}
-        self._compiling: list[tuple[int, str]] = []
+        self.check_values = check_values
         self.accepts: list[Accept] = []
         self.chosen: Accept | None = None
+        self.provenance: list[dict] | None = None
         self.last_report: dict = {}
-        self.frames: list[dict] = []
-
-    # -- compilation --------------------------------------------------------------------
-    def _compile_shape_expr(self, se, label: str | None = None) -> NFA:
-        if isinstance(se, str):
-            decl = declaration_of(self.cntxt, se)
-            if decl is None:
-                raise MaterializationError(f"Shape {se} is not defined in the output schema")
-            return self._compile_decl(decl, str(se))
-        return self._compile_expr(se, label or f"(inline {type(se).__name__})")
-
-    def _compile_decl(self, decl, label: str) -> NFA:
-        """A reference: the declaration itself or any non-abstract extension of it."""
-        key = id(decl) * 2 + 1
-        if key in self._cache:
-            return self._cache[key]
-        options = extension_candidates(self.cntxt, decl)
-        if not options:
-            raise MaterializationError(f"Shape {label} is abstract and nothing extends it")
-        options.reverse()                       # the declaration itself first, then extensions
-        nfa = _split([self._compile_expr(expression_of(o), str(getattr(o, 'id', label))) for o in options]) \
-            if len(options) > 1 else self._compile_expr(expression_of(options[0]), label)
-        self._cache[key] = nfa
-        return nfa
-
-    def _compile_expr(self, se, label: str) -> NFA:
-        key = id(se) * 2
-        if key in self._cache:
-            return self._cache[key]
-        if any(k == key for k, _ in self._compiling):
-            loop = [lbl for k, lbl in self._compiling[[k for k, _ in self._compiling].index(key):]]
-            raise MaterializationError("cycle in shape expressions: " + " -> ".join(loop + [label]))
-        self._compiling.append((key, label))
-        try:
-            if isinstance(se, ShExJ.ShapeDecl):
-                nfa = self._compile_expr(se.shapeExpr, label)
-            elif isinstance(se, ShExJ.Shape):
-                nfa = _concat([self._nfa_for_expression(p.expression) for p in shape_parts(self.cntxt, se)])
-            elif isinstance(se, (ShExJ.ShapeAnd, ShExJ.ShapeOr)):
-                parts = [self._compile_shape_expr(p) for p in se.shapeExprs
-                         if not isinstance(p, ShExJ.NodeConstraint)]
-                nfa = _concat(parts) if isinstance(se, ShExJ.ShapeAnd) else _split(parts)
-            elif isinstance(se, ShExJ.NodeConstraint):
-                nfa = NFA([State('Match')], 0)
-            else:
-                raise MaterializationError(f"{type(se).__name__} synthesis is not supported")
-        finally:
-            self._compiling.pop()
-        self._cache[key] = nfa
-        return nfa
-
-    def _nfa_for_expression(self, expression) -> NFA:
-        states: list[State] = [State('Match')]
-
-        def mk(s: State) -> int:
-            states.append(s)
-            return len(states) - 1
-
-        def patch(tail: list[int], target: int) -> None:
-            for t in tail:
-                states[t].outs.append(target)
-
-        def walk(expr) -> tuple[int, list[int]]:
-            if isinstance(expr, str):           # an inclusion: &label
-                expr = self.cntxt.tripleExprFor(expr)
-            if isinstance(expr, ShExJ.TripleConstraint):
-                s = mk(State('TC', tc=expr))
-                start, tail = s, [s]
-            elif isinstance(expr, ShExJ.OneOf):
-                starts, tails = [], []
-                for nested in expr.expressions:
-                    s, t = walk(nested)
-                    starts.append(s)
-                    tails.extend(t)
-                start, tail = mk(State('Split', outs=starts)), tails
-            elif isinstance(expr, ShExJ.EachOf):
-                start = tail = None
-                for nested in expr.expressions:
-                    s, t = walk(nested)
-                    if start is None:
-                        start = s
-                    else:
-                        patch(tail, s)
-                    tail = t
-            else:
-                raise MaterializationError(f"unexpected triple expression {type(expr).__name__}")
-            min_ = 1 if expr.min is None else expr.min
-            max_ = 1 if expr.max is None else (float('inf') if expr.max == UNBOUNDED else expr.max)
-            if isinstance(expr, ShExJ.TripleConstraint):
-                if min_ == 0 and max_ == 1 and self._always_synthesizable(expr):
-                    return start, tail          # skipping a constant gains nothing: emit it
-                if min_ == 0:
-                    states[start].skippable = True
-            if min_ == 1 and max_ == 1:
-                return start, tail
-            rept = mk(State('Rept', outs=[start], min=min_, max=max_))
-            patch(tail, rept)
-            return rept, [rept]
-
-        start = 0
-        if expression is not None:
-            s, tail = walk(expression)
-            patch(tail, 0)
-            start = s
-        return NFA(states, start)
-
-    def _always_synthesizable(self, tc) -> bool:
-        acts = map_actions(tc)
-        if acts:
-            return all(not functions.is_function_call(str(a.code or '')) and
-                       self._var(str(a.code or '')) in self.statics for a in acts)
-        return _single_value(tc.valueExpr) is not None
-
-    def _var(self, code: str) -> str:
-        return functions.expand_variable(code, self.prefixes)
+        self.tree: ScopeTree | None = None
+        self._lists: dict[int, tuple] = {}          # id(repeated expr) -> (list path or None,)
+        self._tc_index: dict[int, int] = {}
+        self._active: list[tuple[tuple, str]] = []
+        self._failures: list[dict] = []
+        self._referenced: set[str] = set()
+        self._dropped = 0
 
     # -- running ------------------------------------------------------------------------
     def materialize(self, bindings, root: str | Node | None = None, start=None) -> list[tuple[Node, Node, Node]]:
         """The triples of the best materialization of ``start`` (default: the schema's start)
-        rooted at ``root`` (default: a new blank node).  The best ``max_accepts`` distinct
-        results are kept in :attr:`accepts`, the returned one in :attr:`chosen`.
+        rooted at ``root`` (default: a new blank node).  The alternatives are kept in
+        :attr:`accepts`, best first; the returned one is :attr:`chosen`.
 
-        :raises MaterializationError: when no thread reaches an accepting state
+        :raises MaterializationError: when nothing materializes, or the bindings are not a
+            scope tree, or a repetition reads variables from unrelated lists
         """
         tree = bindings.tree if isinstance(bindings, Bindings) else bindings
-        frames = normalize(tree)
-        self.frames = frames
+        try:
+            self.tree = ScopeTree(tree)
+        except BindingTreeError as e:
+            raise MaterializationError(str(e)) from e
         root = _node(root) if root is not None else BNode()
         if start is None or start is START:
             if self.schema.start is None:
                 raise MaterializationError("The output schema has no start shape; name one with start=")
-            nfa = self._compile_shape_expr(self.schema.start, "START")
+            se = self.schema.start
         else:
-            nfa = self._compile_shape_expr(ShExJ.IRIREF(str(start)))
-        bnode_prefix = uuid.uuid4().hex[:8]
+            se = ShExJ.IRIREF(str(start))
+        self._root = root
+        self._lists, self._tc_index, self._active = {}, {}, []
+        self._failures, self._referenced, self._dropped = [], set(), 0
 
-        failures: list[dict] = []
-        referenced: set[str] = set()
-        available = set(self.statics) | {v for f in frames for v in f}
+        results = self._shape_expr(se, self.tree.root, root, 0, "START" if start is None else str(start))
+        seen: set[frozenset] = set()
         accepts: list[Accept] = []
-        self.accepts, self.chosen = accepts, None
-        by_used: dict[frozenset, Accept] = {}
-        graphs_seen: set[frozenset] = set()
-        total = sum(len(f) for f in frames)
-        found = 0                               # distinct accepts, kept or not
-        best: Accept | None = None
-
-        stack = [Thread(nfa, nfa.start, root, (), None, Cursor(), None, 0)]
-        deferred: list[Thread] = []
-        seen: set = set()
-        steps = pruned = 0
-        accepted_at = None                      # step of the last improvement of ``best``
-        truncated = False
-
-        while stack or deferred:
-            steps += 1
-            if steps > self.max_steps:
-                if accepts:
-                    truncated = True
-                    break
-                raise MaterializationError(f"exceeded max_steps={self.max_steps}", failures,
-                                           self._report(failures, referenced, available, found, True, pruned))
-            if accepted_at is not None and steps - accepted_at > self.explore_steps:
-                truncated = True
-                break
-            th = stack.pop() if stack else deferred.pop(0)
-            key = (th.state, id(th.nfa), id(th.call_stack), th.cursor.idx, th.cursor.used, th.repeats)
+        for r in sorted(results, key=_rank, reverse=True):       # stable: schema order among ties
+            triples, provenance = _distinct(r.quads, r.sources)
+            key = frozenset(triples)
             if key in seen:
-                pruned += 1
                 continue
             seen.add(key)
-            st = th.nfa.states[th.state]
-
-            if st.type == 'Match':
-                if th.call_stack is None:
-                    triples = _collect(th.quads)
-                    graph_key = frozenset(triples)
-                    if graph_key in graphs_seen:
-                        continue
-                    graphs_seen.add(graph_key)
-                    existing = by_used.get(th.cursor.used)
-                    if existing is not None:
-                        if len(triples) > len(existing.triples):
-                            existing.triples, existing.skipped = triples, th.cursor.skipped
-                        continue
-                    accept = Accept(triples, th.cursor.n, th.cursor.skipped, th.cursor.used)
-                    by_used[th.cursor.used] = accept
-                    accepts.append(accept)
-                    found += 1
-                    if best is None or self._better(accept, best):
-                        best, accepted_at = accept, steps
-                    if len(accepts) > self.max_accepts:
-                        # keep the best max_accepts: a full list bounds memory and the
-                        # alternatives offered, not the search -- the greedy leader's
-                        # prefixes accept before it does, and would otherwise crowd it out
-                        others = [a for a in accepts if a is not best]
-                        worst = others[0]
-                        for a in others[1:]:
-                            if not self._better(a, worst):       # ties: drop the latest
-                                worst = a
-                        accepts.remove(worst)
-                        del by_used[worst.used]
-                    if accept.consumed >= total:    # perfect: nothing can beat it
-                        break
-                    continue
-                frame = th.call_stack
-                # vacuous descent: an optional subshape that emitted and consumed nothing
-                # would leave a dangling link; the skip arm already covers it
-                if frame.skippable and th.cursor.n == frame.consumed_mark and \
-                        (th.quads is frame.quads_mark or self.require_bindings_in_subshapes):
-                    continue
-                for out in frame.outs:
-                    stack.append(replace(th, nfa=frame.nfa, state=out, subject=frame.subject,
-                                         repeats=frame.repeats, call_stack=frame.parent))
-
-            elif st.type == 'Split':
-                for out in reversed(st.outs):   # first disjunct explored first
-                    stack.append(replace(th, state=out))
-
-            elif st.type == 'Rept':
-                count, at = _repeats_get(th.repeats, th.state) or (0, -1)
-                if count >= st.min:             # exit (lower priority); reset for re-entry
-                    stack.append(replace(th, state=st.outs[1], repeats=_repeats_set(th.repeats, th.state, None)))
-                # another iteration -- only if the last one consumed a frame binding, or
-                # constant-only subexpressions would repeat to max_repeat
-                limit = st.max if self.max_repeat is None else min(st.max, self.max_repeat)
-                if count < limit and (count == 0 or th.cursor.n > at):
-                    stack.append(replace(th, state=st.outs[0],
-                                         repeats=_repeats_set(th.repeats, th.state, (count + 1, th.cursor.n))))
-
-            elif st.type == 'TC':
-                succs: list[Thread] = []
-                self._step(th, st, frames, succs, failures, referenced, bnode_prefix)
-                if succs and succs[0].cursor.skipped > th.cursor.skipped:
-                    # advancing past unused bindings is a choice: explore the alternatives
-                    # that can still use them first.  (An advance that abandons nothing
-                    # has no alternative, and deferring it would only make the exit arms
-                    # of enclosing repetitions accept, one per iteration, ahead of it.)
-                    deferred.extend(succs)
-                else:
-                    stack.extend(succs)
-            else:
-                raise MaterializationError(f"unexpected NFA state {st.type}")
-
-        report = self._report(failures, referenced, available, found, truncated, pruned)
-        if best is None:
-            raise MaterializationError("no thread reached an accepting state", failures, report)
+            accepts.append(Accept(triples, len(r.reads), 0, r.reads, provenance))
+        self.accepts = accepts
+        report = self._report(len(accepts))
+        if not accepts:
+            raise MaterializationError("nothing materializes the shape from these bindings", self._failures, report)
+        best = accepts[0]
+        if self.prefer is not None:
+            for a in accepts[1:]:
+                if self.prefer(a, best) < 0:
+                    best = a
         self.chosen = best
+        self.provenance = best.provenance
         return best.triples
 
-    def _better(self, a: Accept, b: Accept) -> bool:
-        if self.prefer is not None:
-            return self.prefer(a, b) < 0
-        return (a.consumed, -a.skipped, len(a.triples)) > (b.consumed, -b.skipped, len(b.triples))
+    def update(self, graph: Graph, bindings, root: str | Node | None, start=None) -> tuple[set, set]:
+        """Materialize into ``graph``, replacing what the output schema currently holds at
+        ``root``: the schema, used as an input schema on ``graph`` at ``root``, says which
+        triples it governs there; those no longer produced are removed, the new ones added,
+        and everything else is left alone.  Returns ``(added, removed)``.
 
-    def _report(self, failures, referenced, available, found: int, truncated, pruned) -> dict:
+        Whether the graph holds an earlier materialization is decided by the predicates the
+        output schema's start shape constrains: a triple at ``root`` on one of them means
+        there is something to replace, and it must then conform.
+
+        :raises MaterializationError: when ``graph`` holds something at ``root`` that does not
+            conform to the output schema (so what to replace cannot be told), or nothing
+            materializes
+        """
+        from pyshex.shexmap.bindings import MapValidationError, bind_all
+        root = _node(root) if root is not None else BNode()
+        new = set(self.materialize(bindings, root, start=start))
+        current: set = set()
+        if self._holds_something(graph, root, start):
+            try:
+                for b in bind_all(graph, self.schema, root, start=start, prefixes=self.prefixes):
+                    current |= set(b.matched)
+            except MapValidationError as e:
+                raise MaterializationError(f"{root.n3()} holds something that does not conform to the output "
+                                           f"schema, so what to replace cannot be told: {e}") from e
+        removed = current - new
+        added = {t for t in new if t not in graph}
+        for t in removed:
+            graph.remove(t)
+        for t in new:
+            graph.add(t)
+        return added, removed
+
+    def _holds_something(self, graph: Graph, root: Node, start) -> bool:
+        """Whether ``graph`` has, at ``root``, a triple on a predicate the output schema's start
+        shape constrains: the mark of an earlier materialization (or of a conflict)."""
+        se = self.schema.start if start is None or start is START else ShExJ.IRIREF(str(start))
+        for pred, inverse in self._own_predicates(se, set()):
+            if any(graph.triples((None, pred, root) if inverse else (root, pred, None))):
+                return True
+        return False
+
+    def _own_predicates(self, se, seen: set) -> set:
+        """(predicate, inverse) of the constraints on the shape's own node, extensions included."""
+        if isinstance(se, str):
+            decl = declaration_of(self.cntxt, se)
+            return set().union(*(self._own_predicates(expression_of(o), seen)
+                                 for o in (extension_candidates(self.cntxt, decl) if decl is not None else [])))
+        if se is None or id(se) in seen:
+            return set()
+        seen.add(id(se))
+        if isinstance(se, ShExJ.ShapeDecl):
+            return self._own_predicates(se.shapeExpr, seen)
+        if isinstance(se, ShExJ.Shape):
+            out: set = set()
+            stack = [p.expression for p in shape_parts(self.cntxt, se) if p.expression is not None]
+            while stack:
+                e = stack.pop()
+                if isinstance(e, str):
+                    e = self.cntxt.tripleExprFor(e)
+                if isinstance(e, ShExJ.TripleConstraint):
+                    out.add((URIRef(str(e.predicate)), bool(e.inverse)))
+                elif isinstance(e, (ShExJ.EachOf, ShExJ.OneOf)):
+                    stack.extend(e.expressions)
+            return out
+        if isinstance(se, (ShExJ.ShapeAnd, ShExJ.ShapeOr)):
+            return set().union(*(self._own_predicates(p, seen) for p in se.shapeExprs))
+        return set()
+
+    def _report(self, found: int) -> dict:
+        available = set(self.statics) | (self.tree.variables() if self.tree else set())
         seen, unbound = set(), []
-        for f in failures:
+        for f in self._failures:
             v = f.get('variable')
             k = (v, f.get('predicate'))
             if v and v not in available and k not in seen:
@@ -512,95 +318,479 @@ class ThreadedMaterializer:
                 unbound.append(f)
         self.last_report = {
             'unbound_variables': unbound,
-            'unused_statics': [s for s in self.statics if s not in referenced],
+            'unused_statics': [s for s in self.statics if s not in self._referenced],
             'alternatives': found,
-            'exploration_truncated': truncated,
-            'configs_pruned': pruned,
+            'exploration_truncated': self._dropped > 0,
+            'configs_pruned': self._dropped,
         }
         return self.last_report
 
-    def _step(self, th: Thread, st: State, frames, succs, failures, referenced, bnode_prefix) -> None:
-        """Emit one instance of a triple constraint; successors go to ``succs``."""
-        tc = st.tc
+    # -- shape expressions --------------------------------------------------------------
+    def _shape_expr(self, se, scope: Scope, subject: Node, depth: int, label: str | None = None) -> list[Result]:
+        if isinstance(se, str):
+            decl = declaration_of(self.cntxt, se)
+            if decl is None:
+                raise MaterializationError(f"Shape {se} is not defined in the output schema")
+            options = extension_candidates(self.cntxt, decl)
+            if not options:
+                raise MaterializationError(f"Shape {se} is abstract and nothing extends it")
+            options.reverse()                   # the declaration itself first, then its extensions
+            return self._guarded(('ref', id(decl), scope.path, subject), str(se), lambda: self._prune(
+                [r for o in options for r in self._shape_expr(expression_of(o), scope, subject, depth, str(se))]))
+        label = label or f"(inline {type(se).__name__})"
+        if isinstance(se, ShExJ.ShapeDecl):
+            return self._shape_expr(se.shapeExpr, scope, subject, depth, label)
+        if isinstance(se, ShExJ.Shape):
+            parts = [p.expression for p in shape_parts(self.cntxt, se)]
+            return self._guarded(('shape', id(se), scope.path, subject), label, lambda: self._all(
+                [self._expression(e, scope, subject, depth) if e is not None else [EMPTY] for e in parts]))
+        if isinstance(se, ShExJ.ShapeAnd):
+            return self._guarded(('and', id(se), scope.path, subject), label, lambda: self._all(
+                [self._shape_expr(p, scope, subject, depth) for p in se.shapeExprs
+                 if not isinstance(p, ShExJ.NodeConstraint)]))
+        if isinstance(se, ShExJ.ShapeOr):
+            return self._guarded(('or', id(se), scope.path, subject), label, lambda: self._prune(
+                [r for p in se.shapeExprs if not isinstance(p, ShExJ.NodeConstraint)
+                 for r in self._shape_expr(p, scope, subject, depth)]))
+        if isinstance(se, ShExJ.NodeConstraint):
+            return [EMPTY]
+        raise MaterializationError(f"{type(se).__name__} synthesis is not supported")
+
+    def _guarded(self, key: tuple, label: str, run: Callable[[], list[Result]]) -> list[Result]:
+        """Evaluate, refusing a shape expression that reaches itself at the same scope and
+        subject through references alone (``<A> @<B> OR ...``, ``<B> @<A> OR ...``)."""
+        for i, (k, _) in enumerate(self._active):
+            if k == key:
+                raise MaterializationError("cycle in shape expressions: " +
+                                           " -> ".join(lbl for _, lbl in self._active[i:]) + " -> " + label)
+        self._active.append((key, label))
+        try:
+            return run()
+        finally:
+            self._active.pop()
+
+    # -- triple expressions -------------------------------------------------------------
+    def _expression(self, expr, scope: Scope, subject: Node, depth: int) -> list[Result]:
+        if isinstance(expr, str):               # an inclusion: &label
+            expr = self.cntxt.tripleExprFor(expr)
+        min_ = 1 if expr.min is None else expr.min
+        max_ = 1 if expr.max is None else (math.inf if expr.max == UNBOUNDED else expr.max)
+        if min_ == 1 and max_ == 1:
+            return self._once(expr, scope, subject, depth, False)
+        return self._repetition(expr, min_, max_, scope, subject, depth)
+
+    def _once(self, expr, scope: Scope, subject: Node, depth: int, skippable: bool) -> list[Result]:
+        """The alternatives for one occurrence of ``expr``, cardinality aside."""
+        if isinstance(expr, ShExJ.TripleConstraint):
+            return self._tc(expr, scope, subject, depth, skippable)
+        if isinstance(expr, ShExJ.EachOf):
+            return self._all([self._expression(e, scope, subject, depth) for e in expr.expressions])
+        if isinstance(expr, ShExJ.OneOf):
+            return self._prune([r for e in expr.expressions for r in self._expression(e, scope, subject, depth)])
+        raise MaterializationError(f"unexpected triple expression {type(expr).__name__}")
+
+    def _repetition(self, expr, min_: int, max_: float, scope: Scope, subject: Node, depth: int) -> list[Result]:
+        list_path = self._list_path(expr)
+        skippable = min_ == 0
+        if list_path is None or len(list_path) <= scope.depth:
+            # the body reads nothing below this scope: it runs once, here
+            if min_ > 1:
+                return []
+            body = self._once(expr, scope, subject, depth, skippable)
+            return body if body else ([EMPTY] if min_ == 0 else [])
+        cap = max_ if self.max_repeat is None else min(max_, self.max_repeat)
+        results, count = [EMPTY], 0
+        for item in scope.descendants_at(list_path):
+            if count >= cap:
+                break
+            body = self._once(expr, item, subject, depth, skippable)
+            if not body:
+                continue                        # this item does not fit the body: skip it
+            results = self._all([results, body])
+            count += 1
+        return results if count >= min_ else []
+
+    def _tc(self, tc: ShExJ.TripleConstraint, scope: Scope, subject: Node, depth: int, skippable: bool) -> list[Result]:
         pred = URIRef(str(tc.predicate))
 
         def triple(obj: Node):
             if tc.inverse:
                 if isinstance(obj, Literal):
-                    return None                 # a literal cannot be a subject
-                return (obj, pred, th.subject)
-            return (th.subject, pred, obj)
+                    self._failures.append({'predicate': str(pred), 'tc': tc, 'error': 'literal subject of inverse'})
+                    return None
+                return (obj, pred, subject)
+            return (subject, pred, obj)
 
         acts = map_actions(tc)
+        if any(functions.is_key_code(str(a.code or '')) for a in acts):
+            return self._keyed(tc, acts, scope, subject, depth, skippable, triple)
         if acts:
-            cursor = th.cursor
-            quads = th.quads
+            reads: set = set()
+            statics_read: list = []
+
+            def get(v: str):
+                self._referenced.add(v)
+                if v in self.statics:
+                    statics_read.append(v)
+                    return self.statics[v]
+                hit = scope.lookup(v)
+                if hit is None:
+                    return None
+                value, at = hit
+                reads.add((at.path, v))
+                return value
+
+            quads = []
+            objects = []
+            sources = []
             for act in acts:
                 code = str(act.code or '')
-                if functions.is_function_call(code):
-                    def get(v: str):
-                        nonlocal cursor
-                        referenced.add(v)
-                        hit = cursor_get(frames, self.statics, cursor, v)
-                        if hit is None:
-                            return None
-                        value, cursor = hit
-                        return value
-                    try:
+                before = set(reads)
+                del statics_read[:]
+                try:
+                    if functions.is_function_call(code):
                         value = functions.lower(code, get, self.prefixes)
-                    except functions.MapFunctionError as e:
-                        failures.append({'predicate': str(pred), 'tc': tc, 'code': code, 'error': str(e)})
-                        return
+                        if value is None:
+                            self._failures.append({'predicate': str(pred), 'tc': tc, 'code': code, 'error': 'unbound'})
+                            return []
+                        how = {'code': code.strip()}
+                    else:
+                        var = functions.expand_variable(code, self.prefixes)
+                        value = get(var)
+                        if value is None:
+                            self._failures.append({'predicate': str(pred), 'tc': tc, 'variable': var, 'scope': scope.path})
+                            return []
+                        how = {'variable': var}
+                except functions.MapFunctionError as e:
+                    self._failures.append({'predicate': str(pred), 'tc': tc, 'code': code, 'error': str(e)})
+                    return []
+                if self.check_values:
+                    value = self._checked(tc, value)
                     if value is None:
-                        failures.append({'predicate': str(pred), 'tc': tc, 'code': code, 'error': 'unbound'})
-                        return
-                else:
-                    try:
-                        var = self._var(code)
-                    except functions.MapFunctionError as e:
-                        failures.append({'predicate': str(pred), 'tc': tc, 'code': code, 'error': str(e)})
-                        return
-                    referenced.add(var)
-                    hit = cursor_get(frames, self.statics, cursor, var)
-                    if hit is None:
-                        failures.append({'predicate': str(pred), 'tc': tc, 'variable': var, 'frame': cursor.idx})
-                        return
-                    value, cursor = hit
+                        self._failures.append({'predicate': str(pred), 'tc': tc, 'code': code,
+                                               'error': 'the value does not satisfy the value expression'})
+                        return []
                 t = triple(value)
                 if t is None:
-                    failures.append({'predicate': str(pred), 'tc': tc, 'error': 'literal subject of inverse'})
-                    return
-                quads = (t, quads)
-            for out in st.outs:
-                succs.append(replace(th, state=out, cursor=cursor, quads=quads))
-            return
+                    return []
+                quads.append(t)
+                objects.append(value)
+                sources.append(_source(tc, scope, sorted(reads - before), list(statics_read), **how))
+            if references_shape(tc.valueExpr) and len(objects) == 1 and not isinstance(objects[0], Literal):
+                # the variable names the node: materialize the nested shape on it
+                if depth >= self.max_call_depth:
+                    self._failures.append({'predicate': str(pred), 'tc': tc, 'error': 'exceeded max_call_depth'})
+                    return []
+                sources[0]['named'] = True
+                result = Result(tuple(quads), frozenset(reads), tuple(sources))
+                return [result.then(n) for n in self._shape_expr(tc.valueExpr, scope, objects[0], depth + 1)]
+            return [Result(tuple(quads), frozenset(reads), tuple(sources))]
 
         constant = _single_value(tc.valueExpr)
         if constant is not None:
             t = triple(constant)
-            if t is None:
-                failures.append({'predicate': str(pred), 'tc': tc, 'error': 'literal subject of inverse'})
-                return
-            for out in st.outs:
-                succs.append(replace(th, state=out, quads=(t, th.quads)))
-            return
+            return [Result((t,), frozenset(), (_source(tc, scope, constant=True),))] if t is not None else []
 
         if references_shape(tc.valueExpr):
-            if _depth(th.call_stack) >= self.max_call_depth:
-                failures.append({'predicate': str(pred), 'tc': tc, 'error': 'exceeded max_call_depth'})
-                return
-            sub = self._compile_shape_expr(tc.valueExpr)
-            bnode = BNode(f"{bnode_prefix}t{th.bnode}")
-            quads = (triple(bnode), th.quads)
-            succs.append(Thread(sub, sub.start, bnode, (),
-                                CallFrame(th.nfa, tuple(st.outs), th.subject, th.repeats, th.call_stack,
-                                          st.skippable, quads, th.cursor.n),
-                                th.cursor, quads, th.bnode + 1))
-            return
+            if depth >= self.max_call_depth:
+                self._failures.append({'predicate': str(pred), 'tc': tc, 'error': 'exceeded max_call_depth'})
+                return []
+            node = self._mint(tc, scope, depth)
+            link = triple(node)
+            if link is None:
+                return []
+            out = []
+            for n in self._shape_expr(tc.valueExpr, scope, node, depth + 1):
+                if skippable and not n.reads and (not n.quads or self.require_bindings_in_subshapes):
+                    continue                    # an optional island nothing asked for
+                out.append(Result((link,) + n.quads, n.reads, (_source(tc, scope, structural=True),) + n.sources))
+            return out
 
-        failures.append({'predicate': str(pred), 'tc': tc,
-                         'error': f"cannot synthesize {type(tc.valueExpr).__name__ if tc.valueExpr else 'any value'}"
-                                  " without a Map action"})
+        self._failures.append({'predicate': str(pred), 'tc': tc,
+                               'error': f"cannot synthesize {type(tc.valueExpr).__name__ if tc.valueExpr else 'any value'}"
+                                        " without a Map action"})
+        return []
+
+    def _keyed(self, tc, acts, scope: Scope, subject: Node, depth: int, skippable: bool, triple) -> list[Result]:
+        """A shape-valued constraint with ``id(...)``: the node is a function of the key."""
+        pred = str(tc.predicate)
+        if len(acts) > 1:
+            raise MaterializationError(f"id() must be the only Map code on the constraint at {pred}")
+        if not references_shape(tc.valueExpr):
+            raise MaterializationError(f"id() at {pred} needs a shape-valued constraint: it names a node, not a value")
+        code = str(acts[0].code or '')
+        try:
+            terms = functions.key_terms(code, self.prefixes)
+        except functions.MapFunctionError as e:
+            raise MaterializationError(str(e)) from e
+        reads: set = set()
+        statics_read: list = []
+        missing: list = []
+
+        def get(a: str):
+            self._referenced.add(a)
+            if a in self.statics:
+                statics_read.append(a)
+                return self.statics[a]
+            hit = scope.lookup(a)
+            if hit is None:
+                missing.append(a)
+                return None
+            value, at = hit
+            reads.add((at.path, a))
+            return value
+
+        values = []
+        for term in terms:
+            if term == functions.NODE_ARGUMENT:
+                value = scope.nearest_node()
+                if value is None:
+                    self._failures.append({'predicate': pred, 'tc': tc, 'code': code, 'error': 'no @node in scope'})
+                    return []
+            elif isinstance(term, functions.Template):
+                value = term.expand(get)
+            else:
+                value = get(term)
+            if value is None:
+                self._failures.append({'predicate': pred, 'tc': tc, 'variable': missing[-1] if missing else code,
+                                       'scope': scope.path})
+                return []
+            values.append(value)
+        if len(values) == 1 and not isinstance(values[0], Literal):
+            node = values[0]
+        else:
+            shape = str(tc.valueExpr) if isinstance(tc.valueExpr, str) else f"inline{self._tc_index.setdefault(id(tc), len(self._tc_index))}"
+            node = BNode("k" + _digest(shape, *(v.n3() for v in values)))
+        if depth >= self.max_call_depth:
+            self._failures.append({'predicate': pred, 'tc': tc, 'error': 'exceeded max_call_depth'})
+            return []
+        link = triple(node)
+        if link is None:
+            return []
+        out = []
+        for n in self._shape_expr(tc.valueExpr, scope, node, depth + 1):
+            if skippable and not (n.reads | reads) and (not n.quads or self.require_bindings_in_subshapes):
+                continue
+            out.append(Result((link,) + n.quads, frozenset(reads) | n.reads,
+                              (_source(tc, scope, sorted(reads), statics_read, keyed=code.strip()),) + n.sources))
+        return out
+
+    # -- value expressions --------------------------------------------------------------
+    def _checked(self, tc, value: Node) -> Node | None:
+        """``value`` if it satisfies the constraint's value expression, a retyped copy of a
+        plain literal whose lexical form fits the expression's datatype, or None."""
+        se = self._resolve(tc.valueExpr)
+        if se is None or not _is_node_constraint(se):
+            return value                    # nothing to check: a shape, or no expression at all
+        if self._satisfies(se, value):
+            return value
+        dt = self._datatype_of(se)
+        if dt and isinstance(value, Literal) and value.datatype is None and value.language is None \
+                and _valid_lexical(str(value), str(dt)) is not False:
+            retyped = Literal(str(value), datatype=URIRef(str(dt)))
+            if self._satisfies(se, retyped):
+                return retyped
+        return None
+
+    def _datatype_of(self, se):
+        """The datatype a value expression asks for: its own, or the one conjunct that has one."""
+        se = self._resolve(se)
+        if isinstance(se, ShExJ.NodeConstraint):
+            return se.datatype
+        if isinstance(se, ShExJ.ShapeAnd):
+            found = [dt for dt in (self._datatype_of(p) for p in se.shapeExprs) if dt]
+            return found[0] if len(set(map(str, found))) == 1 else None
+        return None
+
+    def _resolve(self, se):
+        for _ in range(100):
+            if isinstance(se, str):
+                decl = declaration_of(self.cntxt, se)
+                if decl is None:
+                    return None
+                se = expression_of(decl)
+            elif isinstance(se, ShExJ.ShapeDecl):
+                se = se.shapeExpr
+            else:
+                return se
+        return None
+
+    def _satisfies(self, se, value: Node) -> bool:
+        se = self._resolve(se)
+        if isinstance(se, ShExJ.NodeConstraint):
+            saved = self.cntxt.current_node
+            self.cntxt.current_node = ParseNode(satisfiesNodeConstraint, se, value, self.cntxt)
+            try:
+                return bool(satisfiesNodeConstraint(self.cntxt, value, se))
+            finally:
+                self.cntxt.current_node = saved
+        if isinstance(se, ShExJ.ShapeAnd):
+            return all(self._satisfies(p, value) for p in se.shapeExprs if _is_node_constraint(self._resolve(p)))
+        if isinstance(se, ShExJ.ShapeOr):
+            return any(self._satisfies(p, value) for p in se.shapeExprs)
+        if isinstance(se, ShExJ.ShapeNot):
+            return not self._satisfies(se.shapeExpr, value)
+        return True                         # a shape: the nested materialization is the check
+
+    def _mint(self, tc, scope: Scope, depth: int) -> BNode:
+        """The node for a shape-valued constraint without a key: determined by the root, the
+        constraint, its call depth, and the scope -- the input node the scope matched when it
+        is an iteration, else its path -- so a materialization is reproducible and two runs
+        over the same input agree."""
+        n = self._tc_index.setdefault(id(tc), len(self._tc_index))
+        where = scope.node.n3() if scope.node is not None else "p" + "_".join(map(str, scope.path))
+        return BNode(f"m{_digest(self._root.n3(), str(n), str(depth), where)}")
+
+    # -- combining alternatives ---------------------------------------------------------
+    def _all(self, parts: list[list[Result]]) -> list[Result]:
+        """Every combination of one alternative per part, pruned as it grows."""
+        acc = [EMPTY]
+        for alternatives in parts:
+            if not alternatives:
+                return []
+            acc = self._prune([a.then(b) for a in acc for b in alternatives])
+        return acc
+
+    def _prune(self, results: list[Result]) -> list[Result]:
+        if len(results) <= self.max_accepts:
+            return results
+        ranked = sorted(range(len(results)), key=lambda i: _rank(results[i]), reverse=True)[:self.max_accepts]
+        self._dropped += len(results) - len(ranked)
+        return [results[i] for i in sorted(ranked)]
+
+    # -- which list a repetition iterates -----------------------------------------------
+    def _list_path(self, expr) -> ListPath | None:
+        key = id(expr)
+        if key not in self._lists:
+            self._lists[key] = (self._analyse(expr),)
+        return self._lists[key][0]
+
+    def _analyse(self, expr) -> ListPath | None:
+        """The list the repetition ``expr`` iterates: the deepest list its body's variables are
+        bound at, nested repetitions counting through their parent list."""
+        direct: set[str] = set()
+        nested: list = []
+        self._collect(expr, direct, nested, set(), top=True)
+        bound = self.tree.bound_at
+        candidates: dict[ListPath, str] = {}
+        for v in direct:
+            if v in bound:
+                candidates.setdefault(bound[v], v)
+        for r in nested:
+            lp = self._list_path(r)
+            if lp:
+                candidates.setdefault(lp[:-1], f"the repetition at {_predicates(r)}")
+        if not candidates:
+            return None
+        deepest = max(candidates, key=len)
+        for lp, why in candidates.items():
+            if deepest[:len(lp)] != lp:
+                raise MaterializationError(
+                    f"the repetition at {_predicates(expr)} reads from unrelated lists: "
+                    f"{why} is bound at {lp} and {candidates[deepest]} at {deepest}")
+        return deepest
+
+    def _collect(self, expr, direct: set[str], nested: list, seen: set, top: bool) -> None:
+        """Variables read directly in ``expr``'s body and the repetitions directly inside it."""
+        if isinstance(expr, str):
+            expr = self.cntxt.tripleExprFor(expr)
+        if expr is None or id(expr) in seen:
+            return
+        seen.add(id(expr))
+        if not top and not (expr.min in (None, 1) and expr.max in (None, 1)):
+            nested.append(expr)
+            return
+        if isinstance(expr, ShExJ.TripleConstraint):
+            for act in map_actions(expr):
+                code = str(act.code or '')
+                try:
+                    if functions.is_function_call(code):
+                        direct.update(functions.variables_of(code, self.prefixes))
+                    else:
+                        direct.add(functions.expand_variable(code, self.prefixes))
+                except functions.MapFunctionError:
+                    pass
+            if references_shape(expr.valueExpr):
+                self._collect_shape(expr.valueExpr, direct, nested, seen)
+        elif isinstance(expr, (ShExJ.EachOf, ShExJ.OneOf)):
+            for e in expr.expressions:
+                self._collect(e, direct, nested, seen, top=False)
+
+    def _collect_shape(self, se, direct: set[str], nested: list, seen: set) -> None:
+        if isinstance(se, str):
+            decl = declaration_of(self.cntxt, se)
+            if decl is None:
+                return
+            for o in extension_candidates(self.cntxt, decl):
+                self._collect_shape(expression_of(o), direct, nested, seen)
+            return
+        if id(se) in seen:
+            return
+        seen.add(id(se))
+        if isinstance(se, ShExJ.ShapeDecl):
+            self._collect_shape(se.shapeExpr, direct, nested, seen)
+        elif isinstance(se, ShExJ.Shape):
+            for p in shape_parts(self.cntxt, se):
+                if p.expression is not None:
+                    self._collect(p.expression, direct, nested, seen, top=False)
+        elif isinstance(se, (ShExJ.ShapeAnd, ShExJ.ShapeOr)):
+            for p in se.shapeExprs:
+                self._collect_shape(p, direct, nested, seen)
+
+
+def _is_node_constraint(se) -> bool:
+    """A value expression that constrains the node itself, not its arcs."""
+    if isinstance(se, ShExJ.NodeConstraint):
+        return True
+    if isinstance(se, (ShExJ.ShapeAnd, ShExJ.ShapeOr)):
+        return any(_is_node_constraint(p) for p in se.shapeExprs if not isinstance(p, str))
+    if isinstance(se, ShExJ.ShapeNot):
+        return _is_node_constraint(se.shapeExpr)
+    return False
+
+
+def _valid_lexical(lexical: str, datatype: str) -> bool | None:
+    """Whether rdflib can read ``lexical`` as ``datatype``; None for a datatype it does not know."""
+    from rdflib.term import XSDToPython
+    dt = URIRef(datatype)
+    if dt not in XSDToPython:
+        return None
+    converter = XSDToPython[dt]
+    if converter is None:
+        return True
+    try:
+        converter(lexical)
+    except (ValueError, TypeError, ArithmeticError):
+        return False
+    return True
+
+
+def _digest(*parts: str) -> str:
+    return hashlib.sha1("\x00".join(parts).encode("utf-8")).hexdigest()[:16]
+
+
+def _predicates(expr) -> str:
+    """A short name for a triple expression: its first predicate(s)."""
+    found = []
+    stack = [expr]
+    while stack and len(found) < 2:
+        e = stack.pop()
+        if isinstance(e, ShExJ.TripleConstraint):
+            found.append(str(e.predicate))
+        elif isinstance(e, (ShExJ.EachOf, ShExJ.OneOf)):
+            stack.extend(reversed(list(e.expressions)))
+    return ", ".join(found) or "(no predicate)"
+
+
+def _distinct(quads, sources) -> tuple[list, list]:
+    """The quads without repeats, and each one's first source."""
+    seen, out, prov = set(), [], []
+    for q, s in zip(quads, sources):
+        if q not in seen:
+            seen.add(q)
+            out.append(q)
+            prov.append(s)
+    return out, prov
 
 
 def _single_value(value_expr) -> Node | None:
@@ -622,7 +812,7 @@ def _node(term) -> Node:
 
 def materialize(schema: str | ShExJ.Schema, bindings, root: str | Node | None = None, start=None,
                 static_vars: Mapping[str, Node] | None = None, prefixes: Mapping[str, str] | None = None,
-                graph: Graph | None = None, **options) -> Graph:
+                graph: Graph | None = None, replace: bool = False, **options) -> Graph:
     """Materialize ``root`` as an instance of the output schema from ``bindings``.
 
     A convenience over :class:`ThreadedMaterializer` (which also exposes the alternative
@@ -635,13 +825,17 @@ def materialize(schema: str | ShExJ.Schema, bindings, root: str | Node | None = 
     :param static_vars: extra variable values, shared everywhere (shex.js ``staticVars``)
     :param prefixes: prefixes for ShExMap variable names; read from ShExC text when omitted
     :param graph: graph to add to; a new one by default
+    :param replace: with ``graph``, replace what the output schema currently holds at
+        ``root`` instead of adding to it (see :meth:`ThreadedMaterializer.update`)
     :raises MaterializationError: when the shape cannot be built
     """
     m = ThreadedMaterializer(schema, prefixes=prefixes, static_vars=static_vars, **options)
-    triples = m.materialize(bindings, root, start=start)
     graph = graph if graph is not None else Graph()
     for prefix, ns in m.prefixes.items():
         graph.bind(prefix, ns, override=False)
-    for t in triples:
+    if replace:
+        m.update(graph, bindings, root, start=start)
+        return graph
+    for t in m.materialize(bindings, root, start=start):
         graph.add(t)
     return graph

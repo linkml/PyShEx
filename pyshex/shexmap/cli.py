@@ -11,6 +11,14 @@ Only collect bindings (written as JSON, compatible with shex.js)::
 Materialize from bindings saved earlier, by this tool or by shex.js::
 
     shexmap -j bindings.json -t out.shex -r <tag:out1>
+
+Check that two schemas map coherently, without data::
+
+    shexmap --check -s in.shex -t out.shex
+
+Update a graph in place, replacing what the output schema holds at the root::
+
+    shexmap -i data.ttl -s in.shex -f <tag:obs1> -t out.shex -r <tag:out1> --into existing.ttl
 """
 import json
 import sys
@@ -19,8 +27,8 @@ from pathlib import Path
 
 from rdflib import BNode, Graph, URIRef
 
-from pyshex.shexmap import (MapFunctionError, MapValidationError, MaterializationError, ThreadedMaterializer, bind,
-                            dumps, loads)
+from pyshex.shexmap import (MapFunctionError, MapValidationError, MaterializationError, ThreadedMaterializer, analyse,
+                            bind, dumps, loads)
 from pyshex.shexmap.bindings import term_from_json
 
 
@@ -48,14 +56,47 @@ def genargs(prog: str | None = None) -> ArgumentParser:
     p.add_argument("--static", help="JSON object of extra variable values, as shex.js staticVars")
     p.add_argument("--strict", action="store_true",
                    help="fail when the input or the output can be matched in more than one way")
+    p.add_argument("--into", help="an existing RDF file (in --output-format) to update in place: what the output "
+                                  "schema currently holds at --root is replaced, the rest kept; written back there "
+                                  "unless --output says otherwise")
+    p.add_argument("--provenance", help="write one JSON object per output triple here: the triple, the output "
+                                        "constraint's predicate, the input scope and node it came from, the bindings "
+                                        "read, and how the object arose")
+    p.add_argument("--check", action="store_true",
+                   help="only analyse --input-schema against --output-schema: every output repetition has a list "
+                        "to iterate, every variable read is bound where it can be read; exit 1 on errors")
     p.add_argument("-o", "--output", help="write the output RDF here (default: stdout)")
     p.add_argument("--output-format", default="turtle", help="output RDF format (default: turtle)")
     return p
 
 
+def provenance_json(triple, source: dict) -> dict:
+    """A triple's provenance record as JSON: terms in N3, the input node likewise."""
+    s, p, o = triple
+    kind = next((k for k in ("variable", "code", "keyed", "constant", "structural", "named") if k in source), "?")
+    return {"subject": s.n3(), "predicate": p.n3(), "object": o.n3(),
+            "constraint": source["predicate"], "scope": list(source["scope"]),
+            "node": source["node"].n3() if source["node"] is not None else None,
+            "reads": [[list(path), var] for path, var in source["reads"]], "statics": list(source["statics"]),
+            "kind": kind, kind: source[kind] if kind in ("variable", "code", "keyed") else True}
+
+
 def main(argv: list[str] | None = None, prog: str | None = None) -> int:
     parser = genargs(prog)
     opts = parser.parse_args(argv)
+    if opts.check:
+        if not (opts.input_schema and opts.output_schema):
+            parser.error("--check needs --input-schema and --output-schema")
+        static = list(json.loads(Path(opts.static).read_text(encoding="utf-8"))) if opts.static else []
+        try:
+            report = analyse(Path(opts.input_schema).read_text(encoding="utf-8"),
+                             Path(opts.output_schema).read_text(encoding="utf-8"),
+                             input_start=opts.start, output_start=opts.output_start, static_vars=static)
+        except ValueError as e:
+            print(f"shexmap: {e}", file=sys.stderr)
+            return 1
+        print(report)
+        return 0 if report.ok else 1
     if opts.bindings:
         if opts.input or opts.input_schema or opts.focus:
             parser.error("--bindings replaces --input, --input-schema and --focus")
@@ -84,20 +125,30 @@ def main(argv: list[str] | None = None, prog: str | None = None) -> int:
             static = {k: term_from_json(v) for k, v in json.loads(Path(opts.static).read_text(encoding="utf-8")).items()} \
                 if opts.static else None
             m = ThreadedMaterializer(Path(opts.output_schema).read_text(encoding="utf-8"), static_vars=static)
-            triples = m.materialize(bindings, parse_node(opts.root) if opts.root else BNode(), start=opts.output_start)
+            root = parse_node(opts.root) if opts.root else BNode()
+            if opts.into:
+                out = Graph().parse(opts.into, format=opts.output_format)
+                added, removed = m.update(out, bindings, root, start=opts.output_start)
+                triples = m.chosen.triples
+                print(f"shexmap: {opts.into}: {len(added)} triples added, {len(removed)} removed", file=sys.stderr)
+            else:
+                out = Graph()
+                triples = m.materialize(bindings, root, start=opts.output_start)
+                for t in triples:
+                    out.add(t)
             if len(m.accepts) > 1:
                 if opts.strict:
                     raise MaterializationError(f"the bindings fit the output schema in {len(m.accepts)} ways")
                 print(f"shexmap: warning: the bindings fit the output schema in {len(m.accepts)} ways;"
                       " using the one that uses the most bindings", file=sys.stderr)
-            out = Graph()
             for prefix, ns in m.prefixes.items():
                 out.bind(prefix, ns, override=False)
-            for t in triples:
-                out.add(t)
+            if opts.provenance:
+                Path(opts.provenance).write_text("".join(json.dumps(provenance_json(t, src)) + "\n"
+                                                         for t, src in zip(triples, m.provenance)), encoding="utf-8")
             text = out.serialize(format=opts.output_format)
-            if opts.output:
-                Path(opts.output).write_text(text, encoding="utf-8")
+            if opts.output or opts.into:
+                Path(opts.output or opts.into).write_text(text, encoding="utf-8")
             else:
                 sys.stdout.write(text)
     except (MapValidationError, MaterializationError, MapFunctionError) as e:

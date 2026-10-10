@@ -18,22 +18,27 @@ terminal.
   when the input conforms in several ways that bind differently it says so
   (``.alternatives``), and :func:`bind_all` returns every way.  EXTENDS and inverse
   (``^p``) constraints are followed.
-* :class:`ThreadedMaterializer` builds the output by running threads over each output
-  shape's NFA, each with its own cursor into the bindings, and keeps every accepting
-  thread (``.accepts``), returning the one that uses the most bindings.
+* :func:`analyse` checks a schema pair before any data: every output repetition has a
+  list to iterate, every variable read is bound where it can be read from, and unused
+  bindings are reported.
+* :class:`ThreadedMaterializer` builds the output from the binding tree's structure: an
+  output repetition iterates the input list its variables are bound at, a parent's
+  binding is read in every item, and the alternatives a ``OneOf`` or an extension leaves
+  open are kept (``.accepts``), the one that reads the most bindings returned.
 """
 from rdflib import Graph
 from rdflib.term import Node
 
-from pyshex.shexmap.bindings import (MAP_EXTENSION, AmbiguousBindingsError, Bindings, MapValidationError, bind,
-                                     bind_all, dumps, loads, normalize, shexc_prefixes)
+from pyshex.shexmap.bindings import (MAP_EXTENSION, NODE_KEY, AmbiguousBindingsError, Bindings, MapValidationError,
+                                     bind, bind_all, dumps, loads, normalize, shexc_prefixes)
+from pyshex.shexmap.analysis import Report, analyse
 from pyshex.shexmap.functions import MapFunctionError
 from pyshex.shexmap.materializer import Accept, MaterializationError, ThreadedMaterializer, materialize
 from pyshex.shexmap.semact import register
 
-__all__ = ["MAP_EXTENSION", "Accept", "AmbiguousBindingsError", "Bindings", "MapFunctionError",
-           "MapValidationError", "MaterializationError", "ThreadedMaterializer", "bind", "bind_all", "dumps",
-           "loads", "map_graph", "materialize", "normalize", "register", "shexc_prefixes"]
+__all__ = ["MAP_EXTENSION", "NODE_KEY", "Accept", "AmbiguousBindingsError", "Bindings", "MapFunctionError",
+           "MapValidationError", "MaterializationError", "Report", "ThreadedMaterializer", "analyse", "bind",
+           "bind_all", "dumps", "loads", "map_graph", "materialize", "normalize", "register", "shexc_prefixes"]
 
 
 def map_graph(graph: Graph, input_schema, focus: str | Node, output_schema, root: str | Node | None = None,
