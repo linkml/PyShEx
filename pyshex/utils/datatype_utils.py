@@ -86,7 +86,7 @@ def is_decimal_derived(n: Literal) -> bool:
 
 
 def total_digits(n: Literal) -> int | None:
-    """ 5.4.5 XML Schema Numberic Facet Constraints
+    """ 5.4.5 XML Schema Numeric Facet Constraints
 
      totaldigits and fractiondigits constraints on values not derived from xsd:decimal fail.
      """

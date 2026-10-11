@@ -1,4 +1,4 @@
-""" Implemention of `5.6 Schema Requirements <http://shex.io/shex-semantics/#schema-requirements>`_
+""" Implementation of `5.6 Schema Requirements <http://shex.io/shex-semantics/#schema-requirements>`_
 
 The semantics defined above assume two structural requirements beyond those imposed by the grammar of the
 abstract syntax. These ensure referential integrity and eliminate logical paradoxes such as those that arrise
