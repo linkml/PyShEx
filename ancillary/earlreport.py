@@ -42,7 +42,7 @@ header = """
 
 <https://github.com/hsolbrig> a foaf:Person, earl:Assertor;
   foaf:name "Harold Solbrig";
-  foaf:title "Implementor";
+  foaf:title "Implementer";
   foaf:homepage <https://github.com/hsolbrig> ."""
 
 EARL = Namespace("http://www.w3.org/ns/earl#")

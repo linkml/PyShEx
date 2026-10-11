@@ -199,7 +199,7 @@ class Context:
 
     def reset(self) -> None:
         """
-        Reset the context preceeding an evaluation
+        Reset the context preceding an evaluation
         """
         self.evaluating = set()
         self.assumptions = {}
@@ -363,7 +363,7 @@ class Context:
         :return: Assumed evaluation result.  If None, evaluation must be performed
         """
         if not s.id:
-            s.id = str(BNode())                 # Random permanant id
+            s.id = str(BNode())                 # Random permanent id
         key = (n, s.id)
 
         # We only evaluate a node once
