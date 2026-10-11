@@ -2,6 +2,7 @@
 @prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
 @prefix ns2: <http://wikiba.se/ontology#> .
 @prefix p: <http://www.wikidata.org/prop/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -16,7 +17,7 @@ wd:Q18553423 rdfs:label "motnja presnove vitaminov",
         "trouble du métabolisme des vitamines",
         "vitamin metabolic disorder",
         "vitamino-metabola malsano" ;
-    schema1:dateModified "2024-02-25T21:26:59+00:00"^^xsd:dateTime ;
+    schema1:dateModified "2024-02-25T21:26:59Z"^^xsd:dateTime ;
     schema1:description "Krankheit",
         "inherited metabolic disorder resulting from a deficiency in vitamin or vitamin cofactor transport or metabolism",
         "хвороба" ;
@@ -49,6 +50,12 @@ wd:Q18553423 rdfs:label "motnja presnove vitaminov",
     wdt:P5008 wd:Q4099686 ;
     wdt:P5270 "MONDO_0005528" ;
     wdt:P699 "DOID:0050718" .
+
+<http://www.wikidata.org/entity/statement/Q18553423-33894B4D-5F6D-4603-A82A-79FF2D190649> prov:wasDerivedFrom <http://www.wikidata.org/reference/d9dbd325f6534c1adafa47d190bcfac3b1447191> ;
+    ps:P279 wd:Q194435 .
+
+<http://www.wikidata.org/entity/statement/Q18553423-41D74D4A-DC66-4997-A9F3-01D45E5B01D3> prov:wasDerivedFrom <http://www.wikidata.org/reference/000597e63a70af377570ffb9f8581df343f5fd14> ;
+    ps:P279 wd:Q1758393 .
 
 <http://www.wikidata.org/entity/statement/Q18553423-ABB6B8C2-2D0C-4894-8F5C-1946F4B2AE91> ps:P31 wd:Q112193867 .
 
