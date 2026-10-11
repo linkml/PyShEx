@@ -1,8 +1,7 @@
 @prefix do: <http://purl.obolibrary.org/obo/DOID_> .
-@prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
-@prefix ns2: <http://wikiba.se/ontology#> .
+@prefix ns1: <http://wikiba.se/ontology#> .
+@prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -12,16 +11,16 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 wd:Q18553807 rdfs:label "classic type lipoma" ;
-    schema1:dateModified "2024-02-08T20:30:14Z"^^xsd:dateTime ;
+    schema1:dateModified "2024-02-08T20:30:14+00:00"^^xsd:dateTime ;
     schema1:description "Human disease",
         "Krankheit",
         "хвороба людини",
         "մարդու հիվանդություն",
         "مرض يصيب الإنسان" ;
     schema1:version 2072165306 ;
-    ns2:identifiers 3 ;
-    ns2:sitelinks 0 ;
-    ns2:statements 9 ;
+    ns1:identifiers 3 ;
+    ns1:sitelinks 0 ;
+    ns1:statements 9 ;
     skos:altLabel "Classic Type Lipoma",
         "Conventional Lipoma" ;
     p:P1748 <http://www.wikidata.org/entity/statement/Q18553807-19988DDC-B554-448F-B348-AC838A77751B> ;
@@ -33,8 +32,8 @@ wd:Q18553807 rdfs:label "classic type lipoma" ;
     p:P5008 <http://www.wikidata.org/entity/statement/Q18553807-026AC605-5B25-4EE0-9CAB-B3755C2EDCB6> ;
     p:P5270 <http://www.wikidata.org/entity/statement/Q18553807-CECF90DC-BB2A-488A-8307-475B20B5C142> ;
     p:P699 <http://www.wikidata.org/entity/statement/Q18553807-FD1FCEB2-22D9-4192-A89A-BDA0510F25F8> ;
-    ns1:P5270 <http://purl.obolibrary.org/obo/MONDO_0000967> ;
-    ns1:P699 <http://purl.obolibrary.org/obo/DOID_DOID:10193> ;
+    ns2:P5270 <http://purl.obolibrary.org/obo/MONDO_0000967> ;
+    ns2:P699 <http://purl.obolibrary.org/obo/DOID_DOID:10193> ;
     wdt:P1748 "C27530" ;
     wdt:P279 wd:Q689985 ;
     wdt:P2888 <http://identifiers.org/doid/DOID:10193>,
@@ -44,9 +43,6 @@ wd:Q18553807 rdfs:label "classic type lipoma" ;
     wdt:P5008 wd:Q4099686 ;
     wdt:P5270 "MONDO_0000967" ;
     wdt:P699 "DOID:10193" .
-
-<http://www.wikidata.org/entity/statement/Q18553807-CF910001-755D-4751-9123-D259FAE578FC> prov:wasDerivedFrom <http://www.wikidata.org/reference/bccf2a508fa6c459c04a9a94241ff7fc96b3c874> ;
-    ps:P279 wd:Q689985 .
 
 <http://www.wikidata.org/entity/statement/Q18553807-D19BED1F-468F-4EC4-8C5E-6EFBDC54A240> ps:P31 wd:Q112193867 .
 

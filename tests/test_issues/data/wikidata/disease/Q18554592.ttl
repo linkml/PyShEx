@@ -1,8 +1,7 @@
 @prefix do: <http://purl.obolibrary.org/obo/DOID_> .
-@prefix ns1: <http://wikiba.se/ontology#> .
-@prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns2: <http://wikiba.se/ontology#> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -15,14 +14,14 @@ wd:Q18554592 rdfs:label "lipoma de la médula espinal",
         "lipome de la colonne vertébrale",
         "spinal cord lipoma",
         "spinales Lipom" ;
-    schema1:dateModified "2026-07-05T12:52:44Z"^^xsd:dateTime ;
+    schema1:dateModified "2024-02-25T21:33:43+00:00"^^xsd:dateTime ;
     schema1:description "Krankheit",
         "central nervous system lipoma that is characterized by abnormal fat accumulation in and around the spinal cord",
         "хвороба" ;
-    schema1:version 2514126450 ;
-    ns1:identifiers 3 ;
-    ns1:sitelinks 1 ;
-    ns1:statements 14 ;
+    schema1:version 2087206552 ;
+    ns2:identifiers 3 ;
+    ns2:sitelinks 1 ;
+    ns2:statements 14 ;
     skos:altLabel "Lipoma of spinal cord",
         "Lipoma of spinal cord (disorder)",
         "Spinal Cord Lipoma",
@@ -42,11 +41,13 @@ wd:Q18554592 rdfs:label "lipoma de la médula espinal",
     p:P5270 <http://www.wikidata.org/entity/statement/Q18554592-267CEC66-1B1C-413C-AF5A-735DDFCBA156> ;
     p:P699 <http://www.wikidata.org/entity/statement/Q18554592-AC488A63-0D10-4638-88B0-058F9C72028C> ;
     p:P927 <http://www.wikidata.org/entity/statement/Q18554592-86149C50-3727-4A0E-893C-FF7389656BD1> ;
-    ns2:P5270 <http://purl.obolibrary.org/obo/MONDO_0001790> ;
-    ns2:P699 <http://purl.obolibrary.org/obo/DOID_DOID:13743> ;
+    ns1:P5270 <http://purl.obolibrary.org/obo/MONDO_0001790> ;
+    ns1:P699 <http://purl.obolibrary.org/obo/DOID_DOID:13743> ;
     wdt:P1692 "214.8" ;
     wdt:P1748 "C4619" ;
     wdt:P279 wd:Q18557209,
+        wd:Q2303951,
+        wd:Q689985,
         wd:Q7577474 ;
     wdt:P2888 <http://identifiers.org/doid/DOID:13743>,
         do:13743 ;
@@ -57,15 +58,5 @@ wd:Q18554592 rdfs:label "lipoma de la médula espinal",
     wdt:P699 "DOID:13743" ;
     wdt:P927 wd:Q9606 .
 
-<http://www.wikidata.org/entity/statement/Q18554592-0D7DFB51-C668-4AA1-97CC-EDFE310CF779> prov:wasDerivedFrom <http://www.wikidata.org/reference/000808ca4c858cb1b95e9bc87739c04dcdb05fd6> ;
-    ps:P279 wd:Q2303951 .
-
-<http://www.wikidata.org/entity/statement/Q18554592-36C1958B-E280-400C-B3B6-83176019F060> ps:P279 wd:Q7577474 .
-
 <http://www.wikidata.org/entity/statement/Q18554592-AC7E5A46-3777-4C51-9A90-21233C1DE7C6> ps:P31 wd:Q112193867 .
-
-<http://www.wikidata.org/entity/statement/Q18554592-D91AFB75-402D-4A2C-BADA-8E3B39634F28> prov:wasDerivedFrom <http://www.wikidata.org/reference/000808ca4c858cb1b95e9bc87739c04dcdb05fd6> ;
-    ps:P279 wd:Q18557209 .
-
-<http://www.wikidata.org/entity/statement/Q18554592-EF9A1396-8B65-4A70-9B0B-1139F2A9B8D6> ps:P279 wd:Q689985 .
 

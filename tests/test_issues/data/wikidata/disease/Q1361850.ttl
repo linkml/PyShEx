@@ -2,7 +2,6 @@
 @prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
 @prefix ns2: <http://wikiba.se/ontology#> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -14,10 +13,10 @@
 wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
         "Trompa de Eustaquio patulosa",
         "béance tubaire",
-        "disfunção da tuba auditiva",
         "klaffende Tube",
         "patulous eustachian tube",
         "tuba aperta",
+        "tuba auditiva patulosa",
         "tuba beante",
         "ziejąca trąbka słuchowa",
         "Τυμπανοπνευμονία",
@@ -25,16 +24,16 @@ wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
         "耳咽管開放症",
         "耳管開放症",
         "이관개방증" ;
-    schema1:dateModified "2026-07-03T13:12:57Z"^^xsd:dateTime ;
+    schema1:dateModified "2024-09-22T03:26:47+00:00"^^xsd:dateTime ;
     schema1:description "Krankheit",
-        "condition in which the auditory tube remains abnormally open, causing autophony and auditory discomfort",
         "condição em que a tuba auditiva fica anormalmente aberta, causando autofonia e desconforto auditivo",
         "disfunzione della tromba di Eustachio, il condotto virtuale che collega l'orecchio medio alla faringe che rimane aperto",
         "dysfunkcja trąbki Eustachiusza",
         "enfermedad del oído",
+        "eustachian tube disorder",
         "maladie rare où la trompe d'Eustache, au lieu de rester normalement fermée, s'ouvre involontairement par intermittence",
         "хвороба" ;
-    schema1:version 2513435222 ;
+    schema1:version 2251395007 ;
     ns2:identifiers 13 ;
     ns2:sitelinks 12 ;
     ns2:statements 27 ;
@@ -44,7 +43,6 @@ wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
         "Trompa de Eustaquio distendida",
         "Trompa patulosa",
         "erweiterte Tuba auditiva",
-        "eustachian tube disorder",
         "eustachian tube dysfunction",
         "offene Tube",
         "open buis van Eustachius",
@@ -54,13 +52,13 @@ wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
     p:P1692 <http://www.wikidata.org/entity/statement/Q1361850-F0DEF98A-C463-4E24-921C-2DB10BC3BF79> ;
     p:P1995 <http://www.wikidata.org/entity/statement/Q1361850-3093C4FE-F4C7-469D-A1C5-691FF12948E6> ;
     p:P2579 <http://www.wikidata.org/entity/statement/Q1361850-AC950BDB-F236-4807-9269-5DE59CBA7AA2> ;
-    p:P279 <http://www.wikidata.org/entity/statement/Q1361850-A3CE72DC-839C-4633-8B77-894F3E43FB91>,
-        <http://www.wikidata.org/entity/statement/Q1361850-B1FAC553-E95A-4DF1-AEF8-4C3371D0C84E> ;
+    p:P279 <http://www.wikidata.org/entity/statement/Q1361850-B1FAC553-E95A-4DF1-AEF8-4C3371D0C84E> ;
     p:P2888 <http://www.wikidata.org/entity/statement/Q1361850-81C8C052-59CD-478D-B9B0-5714B9A3DF11>,
         <http://www.wikidata.org/entity/statement/Q1361850-E60EA1BE-19B7-4839-98B5-B5C61854858C> ;
     p:P2892 <http://www.wikidata.org/entity/statement/Q1361850-807E0B62-CB77-41E1-8F1E-E0D694BAA18D> ;
     p:P31 <http://www.wikidata.org/entity/statement/Q1361850-8a2a0770-43b3-60c2-fa62-a731cfe4cd88>,
-        <http://www.wikidata.org/entity/statement/Q1361850-B44CCCFB-76C1-4C5B-B5FE-533CF3C83634> ;
+        <http://www.wikidata.org/entity/statement/Q1361850-B44CCCFB-76C1-4C5B-B5FE-533CF3C83634>,
+        <http://www.wikidata.org/entity/statement/Q1361850-B7AA7A69-4C5A-4C96-9BD0-1E6AE4661814> ;
     p:P3984 <http://www.wikidata.org/entity/statement/Q1361850-5e6b8c05-4636-2f7c-abfe-b313bf9ba06c> ;
     p:P4229 <http://www.wikidata.org/entity/statement/Q1361850-985FB621-B7AE-4FF4-A789-58DF0286AF10>,
         <http://www.wikidata.org/entity/statement/Q1361850-C1300AFA-CEEB-4FAF-B2F6-AB4987601707> ;
@@ -84,12 +82,12 @@ wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
     wdt:P1692 "381.7" ;
     wdt:P1995 wd:Q189553 ;
     wdt:P2579 wd:Q569965 ;
-    wdt:P279 wd:Q1644260,
-        wd:Q18558207 ;
+    wdt:P279 wd:Q18558207 ;
     wdt:P2888 <http://identifiers.org/doid/DOID:12358>,
         do:12358 ;
     wdt:P2892 "C0155434" ;
     wdt:P31 wd:Q112193867,
+        wd:Q1644260,
         wd:Q7189713 ;
     wdt:P3984 "PatulousTubes" ;
     wdt:P4229 "H69.0",
@@ -109,10 +107,7 @@ wd:Q1361850 rdfs:label "Disfunção da tuba auditiva",
 
 <http://www.wikidata.org/entity/statement/Q1361850-8a2a0770-43b3-60c2-fa62-a731cfe4cd88> ps:P31 wd:Q7189713 .
 
-<http://www.wikidata.org/entity/statement/Q1361850-A3CE72DC-839C-4633-8B77-894F3E43FB91> ps:P279 wd:Q1644260 .
-
-<http://www.wikidata.org/entity/statement/Q1361850-B1FAC553-E95A-4DF1-AEF8-4C3371D0C84E> prov:wasDerivedFrom <http://www.wikidata.org/reference/7124ef6e8a13febf923d703cb3009002e36c49e6> ;
-    ps:P279 wd:Q18558207 .
-
 <http://www.wikidata.org/entity/statement/Q1361850-B44CCCFB-76C1-4C5B-B5FE-533CF3C83634> ps:P31 wd:Q112193867 .
+
+<http://www.wikidata.org/entity/statement/Q1361850-B7AA7A69-4C5A-4C96-9BD0-1E6AE4661814> ps:P31 wd:Q1644260 .
 

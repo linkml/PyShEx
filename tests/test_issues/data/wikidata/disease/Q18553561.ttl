@@ -1,8 +1,7 @@
 @prefix do: <http://purl.obolibrary.org/obo/DOID_> .
-@prefix ns1: <http://wikiba.se/ontology#> .
-@prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns1: <http://www.wikidata.org/prop/direct-normalized/> .
+@prefix ns2: <http://wikiba.se/ontology#> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -15,15 +14,15 @@ wd:Q18553561 rdfs:label "carcinome vaginal",
         "vagina karcinomo",
         "vaginal carcinoma",
         "vaginalni karcinom" ;
-    schema1:dateModified "2026-10-08T11:11:44Z"^^xsd:dateTime ;
+    schema1:dateModified "2025-10-24T10:12:36+00:00"^^xsd:dateTime ;
     schema1:description "Krankheit",
         "maladie",
         "vaginal cancer that has material basis in epithelial cells",
         "хвороба" ;
-    schema1:version 2554999564 ;
-    ns1:identifiers 6 ;
-    ns1:sitelinks 0 ;
-    ns1:statements 15 ;
+    schema1:version 2421203039 ;
+    ns2:identifiers 6 ;
+    ns2:sitelinks 1 ;
+    ns2:statements 15 ;
     skos:altLabel "Cancer of Vagina",
         "Cancer of the Vagina",
         "Carcinoma of Vagina",
@@ -51,9 +50,9 @@ wd:Q18553561 rdfs:label "carcinome vaginal",
     p:P5008 <http://www.wikidata.org/entity/statement/Q18553561-5B97FB49-A9B3-4244-BE3B-C5E5EB00BCF3> ;
     p:P5270 <http://www.wikidata.org/entity/statement/Q18553561-F7766A81-2268-40B2-B6F0-7EA3627C658F> ;
     p:P699 <http://www.wikidata.org/entity/statement/Q18553561-F0F13D0D-40FA-473C-9FDD-85DF1ED9AB5E> ;
-    ns2:P2671 <http://g.co/kg/g/11j86wfvys> ;
-    ns2:P5270 <http://purl.obolibrary.org/obo/MONDO_0015867> ;
-    ns2:P699 <http://purl.obolibrary.org/obo/DOID_DOID:0050918> ;
+    ns1:P2671 <http://g.co/kg/g/11j86wfvys> ;
+    ns1:P5270 <http://purl.obolibrary.org/obo/MONDO_0015867> ;
+    ns1:P699 <http://purl.obolibrary.org/obo/DOID_DOID:0050918> ;
     wdt:P1550 "180247" ;
     wdt:P1748 "C3917" ;
     wdt:P2671 "/g/11j86wfvys" ;
@@ -71,13 +70,4 @@ wd:Q18553561 rdfs:label "carcinome vaginal",
     wdt:P699 "DOID:0050918" .
 
 <http://www.wikidata.org/entity/statement/Q18553561-508F5EAE-BA9E-49F3-A8CD-E76A19D35441> ps:P31 wd:Q112193867 .
-
-<http://www.wikidata.org/entity/statement/Q18553561-A7189823-C89C-49F8-87AD-1A4F6ED1F8D3> prov:wasDerivedFrom <http://www.wikidata.org/reference/8c6e943d74dd18af0b37826fe6711050f8fd379e> ;
-    ps:P279 wd:Q55785788 .
-
-<http://www.wikidata.org/entity/statement/Q18553561-D758972A-8E4C-4A32-BDDD-C82F625B652A> prov:wasDerivedFrom <http://www.wikidata.org/reference/00001927a0445bcd890d43f8e62868fb3836bbaa> ;
-    ps:P279 wd:Q1807522 .
-
-<http://www.wikidata.org/entity/statement/Q18553561-DD227958-1179-4403-911C-045965AA6CBF> prov:wasDerivedFrom <http://www.wikidata.org/reference/00001927a0445bcd890d43f8e62868fb3836bbaa> ;
-    ps:P279 wd:Q33525 .
 

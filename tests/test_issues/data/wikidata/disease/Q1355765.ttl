@@ -2,7 +2,6 @@
 @prefix ns1: <http://wikiba.se/ontology#> .
 @prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -15,7 +14,7 @@ wd:Q1355765 rdfs:label "Schaf- und Ziegenbrucellose",
         "brucellose som skuldast Brucella melitensis",
         "brucellose à Brucella melitensis",
         "ovine and caprine brucellosis" ;
-    schema1:dateModified "2025-02-04T08:57:17Z"^^xsd:dateTime ;
+    schema1:dateModified "2025-02-04T08:57:17+00:00"^^xsd:dateTime ;
     schema1:description "Deckseuche von Ziegen und Schafen",
         "brucellosis that involves an infection caused by Brucella melitensis [NCBITaxon:29459] in cattle, goats, sheep and humans. The disease has symptom fever, has symptom malaise, has symptom anorexia, has symptom limb pain and has symptom back pain" ;
     schema1:version 2306702134 ;
@@ -59,7 +58,4 @@ wd:Q1355765 rdfs:label "Schaf- und Ziegenbrucellose",
     wdt:P828 wd:Q3512031 .
 
 <http://www.wikidata.org/entity/statement/Q1355765-06AC3A12-73E3-44C0-9A61-5E5D7865ECCB> ps:P31 wd:Q112193867 .
-
-<http://www.wikidata.org/entity/statement/Q1355765-10a4c674-4c1c-5dfd-e1ba-14252e241327> prov:wasDerivedFrom <http://www.wikidata.org/reference/0015b91901efc7135fe8f5dea01b9c31f51342e4> ;
-    ps:P279 wd:Q156050 .
 

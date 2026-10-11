@@ -22,14 +22,15 @@ def is_up(url: str) -> Optional[bool]:
     if SKIP_EXTERNAL_URLS:
         return False
     try:
-        requests.head(url, timeout=2)
-    except Exception as e:
+        resp = requests.head(url, timeout=2, allow_redirects=True)
+    except Exception:
         return False
-    return True
+    # A gateway error or a missing repository means the endpoint can't answer queries
+    return resp.status_code < 500 and resp.status_code != 404
 
 def is_down_reason(url: str) -> str:
     svr_status = is_up(url)
-    return f"Server {svr} is {'UP' if svr_status else 'DOWN' if svr_status is False else 'NOT BEING TESTED'}"
+    return f"Server {url} is {'UP' if svr_status else 'DOWN' if svr_status is False else 'NOT BEING TESTED'}"
 
 # Prime the cache
 for svr in PRE_CACHE:

@@ -2,7 +2,6 @@
 @prefix ns1: <http://wikiba.se/ontology#> .
 @prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -11,7 +10,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 wd:Q102295546 rdfs:label "GNE myopathy" ;
-    schema1:dateModified "2023-09-27T04:33:33Z"^^xsd:dateTime ;
+    schema1:dateModified "2023-09-27T04:33:33+00:00"^^xsd:dateTime ;
     schema1:description "human disease",
         "хвороба людини" ;
     schema1:version 1982386654 ;
@@ -38,13 +37,5 @@ wd:Q102295546 rdfs:label "GNE myopathy" ;
     wdt:P492 "605820" ;
     wdt:P699 "DOID:0080718" .
 
-<http://www.wikidata.org/entity/statement/Q102295546-1E5A5DE0-88A1-4A95-ABA8-F7F7BC7CB7AF> prov:wasDerivedFrom <http://www.wikidata.org/reference/d8a7a3be51fb61ea942730afbcd9123c29b81d7f> ;
-    ps:P279 wd:Q692536 .
-
 <http://www.wikidata.org/entity/statement/Q102295546-2590C233-9387-4E07-B781-C18AAB57240B> ps:P31 wd:Q112193867 .
-
-<http://www.wikidata.org/entity/statement/Q102295546-3fcff211-4606-3b7a-eda3-2b26670e3367> ps:P492 "605820" .
-
-<http://www.wikidata.org/entity/statement/Q102295546-C1FC7DB3-6D21-4331-A97C-FFE8637B9719> prov:wasDerivedFrom <http://www.wikidata.org/reference/0011dfb148762b92f51402812e0b9d1a9276a281> ;
-    ps:P279 wd:Q10267817 .
 

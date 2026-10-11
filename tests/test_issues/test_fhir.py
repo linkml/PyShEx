@@ -24,6 +24,9 @@ def _run_and_compare(args, result_path):
         assert f.read() == outf.getvalue()
 
 
+# hl7.org/fhir dropped observation-example-haplotype2.ttl after R4, and the published R4, R4B and STU3
+# ShEx either references undefined fhirpath shapes or doesn't parse; test_observation covers the local copy.
+@pytest.mark.skip(reason="no published FHIR example + ShEx pair still validates (checked 2026-10)")
 @pytest.mark.skipif(SKIP_EXTERNAL_URLS, reason=SKIP_EXTERNAL_URLS_MSG)
 def test_observation_online():
     """Test online FHIR example."""
