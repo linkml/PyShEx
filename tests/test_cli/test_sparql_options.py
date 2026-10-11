@@ -65,6 +65,7 @@ class TestSparqlQuery(CLITestCase):
         self.do_test([DRUGBANK_SPARQL_URL, shex, '-sq', sparql, '-ps', '-gn', graphid, '-pr'], 'dbsparql5',
                      failexpected=True, text_filter=elapsed_filter)
 
+    @pytest.mark.skip(reason="graphdb.dumontierlab.com ncats-red-kg repository is gone (502 since at least 2026-10)")
     @skip_dumontier
     def test_named_graph_types(self):
         """Test a Drugbank query with named graph in the query."""
@@ -73,6 +74,7 @@ class TestSparqlQuery(CLITestCase):
                       'select ?item where{?item a <http://w3id.org/biolink/vocab/Protein>} LIMIT 20'],
                      'dbsparql6', failexpected=True, text_filter=elapsed_filter)
 
+    @pytest.mark.skip(reason="graph.fhircat.org no longer has the fhirontology repository or Patient/pat4 (2026-10)")
     @skip_fhircat
     def test_infer_setting(self):
         """Test setting infer to False."""

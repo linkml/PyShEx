@@ -2,7 +2,6 @@
 @prefix ns1: <http://wikiba.se/ontology#> .
 @prefix ns2: <http://www.wikidata.org/prop/direct-normalized/> .
 @prefix p: <http://www.wikidata.org/prop/> .
-@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix ps: <http://www.wikidata.org/prop/statement/> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix schema1: <http://schema.org/> .
@@ -13,11 +12,11 @@
 
 wd:Q19833018 rdfs:label "anémie sidéroblastique autosomique dominante",
         "autosomal dominant sideroblastic anemia" ;
-    schema1:dateModified "2026-07-05T12:33:18Z"^^xsd:dateTime ;
+    schema1:dateModified "2024-02-25T22:44:01+00:00"^^xsd:dateTime ;
     schema1:description "Krankheit",
         "sideroblastic anemia characterized by an autosomal dominant inheritance pattern",
         "хвороба" ;
-    schema1:version 2514121455 ;
+    schema1:version 2087252686 ;
     ns1:identifiers 5 ;
     ns1:sitelinks 0 ;
     ns1:statements 15 ;
@@ -45,6 +44,7 @@ wd:Q19833018 rdfs:label "anémie sidéroblastique autosomique dominante",
     wdt:P1199 wd:Q116406 ;
     wdt:P2293 wd:Q18027359 ;
     wdt:P279 wd:Q18553439,
+        wd:Q2610084,
         wd:Q3616631 ;
     wdt:P2888 <http://identifiers.org/doid/DOID:0060335>,
         do:0060335 ;
@@ -58,17 +58,6 @@ wd:Q19833018 rdfs:label "anémie sidéroblastique autosomique dominante",
     wdt:P699 "DOID:0060335" .
 
 <http://www.wikidata.org/entity/statement/Q19833018-03CC7F20-1FF4-4F9C-96A8-BFC8BB0AE1C8> ps:P31 wd:Q929833 .
-
-<http://www.wikidata.org/entity/statement/Q19833018-6A6DFADB-0677-4F82-89BC-4BEB7F63D2D8> prov:wasDerivedFrom <http://www.wikidata.org/reference/00160afed607e9091119ff69523d36f2dbeca8db> ;
-    ps:P279 wd:Q18553439 .
-
-<http://www.wikidata.org/entity/statement/Q19833018-77B78D53-BCBB-4B7B-B421-E4E856056700> prov:wasDerivedFrom <http://www.wikidata.org/reference/00160afed607e9091119ff69523d36f2dbeca8db> ;
-    ps:P279 wd:Q2610084 .
-
-<http://www.wikidata.org/entity/statement/Q19833018-951AC0F2-C66B-49ED-8647-11AE783A1942> prov:wasDerivedFrom <http://www.wikidata.org/reference/a11116c570f343b3c0efe3cd4e67924f7b3f0cef> ;
-    ps:P492 "182170" .
-
-<http://www.wikidata.org/entity/statement/Q19833018-B66C189E-62FC-4D44-8A69-EFB5AAC22553> ps:P279 wd:Q3616631 .
 
 <http://www.wikidata.org/entity/statement/Q19833018-BEDA6EEB-048F-4DD6-8634-B739ACE3572A> ps:P31 wd:Q112193867 .
 
