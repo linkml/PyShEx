@@ -301,7 +301,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
@@ -373,16 +373,15 @@ wheels = [
 
 [[package]]
 name = "pyjsg"
-version = "0.12.4"
+version = "0.12.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "antlr4-python3-runtime" },
     { name = "jsonasobj" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/4e/192169ba1066454f016927fc46c7e595a6c701fd1173bd249efcf6de40b3/pyjsg-0.12.4.tar.gz", hash = "sha256:bb1c0ff1f50846d2b5185b182e28b0b6978eae51a2078ce3eb1e0f28dea7b9ab", size = 149852, upload-time = "2026-05-01T14:43:44.665Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/7c/b25df6884747026c596507ac393c4e2376bed0d83a30957e878971d6a09c/pyjsg-0.12.5.tar.gz", hash = "sha256:7796cde0ce22bf2459f5601c1a2e2cfdcba782855867e8b185364e4be964ae6b", size = 149651, upload-time = "2026-10-11T04:52:30.574Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/09/05/d129d016f5124adb882816bdaef44bb877e313ceb0a109abcf553f1ac90c/pyjsg-0.12.4-py3-none-any.whl", hash = "sha256:a57ae58bfd7192b32654a0024bc6462fb459d54e837f0b2b5cff0726aad2e557", size = 81728, upload-time = "2026-05-01T14:43:43.394Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/ac/e5a5c90e26edc068408281c6c2c1c8fbb6aae6efd1b312cb2cdd629726c0/pyjsg-0.12.5-py3-none-any.whl", hash = "sha256:6cf60375f203dd275db24fb73b0874b6e1f7a90ef3eaa1e4dcded79842a56fcb", size = 81237, upload-time = "2026-10-11T04:52:28.978Z" },
 ]
 
 [[package]]
