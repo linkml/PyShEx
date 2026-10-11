@@ -1,4 +1,3 @@
-import codecs
 import os
 import re
 from pathlib import PureWindowsPath
@@ -23,10 +22,11 @@ def _base_uri(loc: str | None) -> str | None:
 
 
 def load_shex_file(shexfilename: str) -> str:
-    """ Read a ShEx file or URL, honoring a UTF-8 BOM and otherwise guessing the encoding.
+    """ Read a ShEx file or URL as UTF-8 (honoring a BOM), guessing the encoding only if that fails.
 
-    Same as pyshexc.parser_impl.generate_shexj.load_shex_file, except that it falls back to
-    UTF-8 when chardet (>= 7) reports no encoding, instead of crashing in bytes.decode(None).
+    ShExC is UTF-8 by definition, so chardet is a fallback for non-conforming files rather than
+    the first resort: it samples only the start of the data, and reports ascii with confidence 1.0
+    for a large file whose first non-ASCII character comes later (e.g. FHIR R4's fhir.shex).
     """
     if '://' in shexfilename:
         with request.urlopen(shexfilename) as response:
@@ -34,11 +34,15 @@ def load_shex_file(shexfilename: str) -> str:
     else:
         with open(shexfilename, 'rb') as inf:
             data = inf.read()
-    if data.startswith(codecs.BOM_UTF8):
-        return data.decode('utf-8-sig')
-    result = chardet.detect(data)
-    encoding = result['encoding'] if result['encoding'] and float(result['confidence'] or 0) > 0.9 else 'UTF-8'
-    return data.decode(encoding)
+    try:
+        return data.decode('utf-8-sig')         # also strips a UTF-8 BOM if present
+    except UnicodeDecodeError:
+        pass
+    encoding = chardet.detect(data)['encoding']
+    try:
+        return data.decode(encoding or 'latin-1')
+    except (UnicodeDecodeError, LookupError):
+        return data.decode('latin-1')           # maps every byte, so never fails
 
 
 # ShExJ members holding IRIs that are resolved against the document base.  Imports are

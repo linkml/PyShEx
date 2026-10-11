@@ -1,8 +1,9 @@
+import codecs
 import os
 
 from rdflib import RDF
 
-from pyshex.utils.schema_loader import SchemaLoader
+from pyshex.utils.schema_loader import SchemaLoader, load_shex_file
 
 
 SCHEMAS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'schemas'))
@@ -101,3 +102,33 @@ def test_format_change() -> None:
     assert loader.location_rewrite(f"{loc}.shex") == f"{loc}.shex"
     assert loader.location_rewrite(f"{loc}.shextern") == f"{loc}.shextern"
     assert loader.location_rewrite(f"{loc}.jsontern") == f"{loc}.shextern"
+
+
+# A UTF-8 character after ~300KB of ASCII: chardet only samples the start and reports
+# ascii with confidence 1.0 (as it does for FHIR R4's fhir.shex), which used to crash decode()
+CAFE_SHEXC = '<http://a.example/S1> { <http://a.example/p1> ["caf\u00e9"] }\n'
+
+
+def test_load_shexc_utf8_after_long_ascii_prefix(tmp_path) -> None:
+    shex_file = tmp_path / 'long.shex'
+    shex_file.write_bytes(('# padding line for chardet\n' * 12000 + CAFE_SHEXC).encode('utf-8'))
+    assert load_shex_file(str(shex_file)).endswith(CAFE_SHEXC)
+    schema = SchemaLoader().load(str(shex_file))
+    assert schema.shapes[0].expression.valueExpr.values[0].value == 'caf\u00e9'
+
+
+def test_load_shexc_non_utf8_falls_back(tmp_path) -> None:
+    """ShExC must be UTF-8, but a Latin-1 file still loads rather than crashing.
+    Which 8-bit encoding chardet guesses for so short a sample varies, so only the ASCII is checked."""
+    shex_file = tmp_path / 'latin1.shex'
+    shex_file.write_bytes(CAFE_SHEXC.encode('latin-1'))
+    text = load_shex_file(str(shex_file))
+    assert len(text) == len(CAFE_SHEXC)
+    e_acute = CAFE_SHEXC.index('é')
+    assert text[:e_acute] + 'é' + text[e_acute + 1:] == CAFE_SHEXC
+
+
+def test_load_shexc_utf8_bom(tmp_path) -> None:
+    shex_file = tmp_path / 'bom.shex'
+    shex_file.write_bytes(codecs.BOM_UTF8 + CAFE_SHEXC.encode('utf-8'))
+    assert load_shex_file(str(shex_file)) == CAFE_SHEXC
