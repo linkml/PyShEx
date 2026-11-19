@@ -1,0 +1,89 @@
+name: Dependabot auto-merge
+
+# Merge a Dependabot PR once CI ("Test PyShEx", main.yaml) has gone green on it.
+#
+# Runs on `workflow_run` (after CI finishes), NOT on the Dependabot `pull_request`
+# event, on purpose:
+#   * workflow_run jobs run from the DEFAULT branch, so GITHUB_TOKEN gets the
+#     write permission a merge needs (a Dependabot pull_request token is read-only);
+#   * it sees CI's actual result, which a pull_request-time job can't; and
+#   * it needs NO branch protection, NO ruleset and NO "Allow auto-merge" setting.
+#
+# Every semver level is merged, majors included: the test suite is the gate. To
+# hold majors for a human, uncomment the guard below.
+#
+# NOTE: this file only takes effect once it is on the default branch.
+
+on:
+  workflow_run:
+    # Must list the `name:` of EVERY workflow that runs on pull_request, so that
+    # whichever finishes last re-checks the whole commit (see "all green" below).
+    workflows: ["Test PyShEx"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+# One merge at a time: each merge moves the default branch, so serializing lets
+# the next PR conflict cleanly (Dependabot rebases it, CI re-runs, this re-fires)
+# instead of racing on the lockfile.
+concurrency:
+  group: dependabot-auto-merge
+  cancel-in-progress: false
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Merge the Dependabot PR now that CI is green
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # The open PR whose head commit this CI run tested.
+          pr=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
+                 --jq '.[] | select(.state=="open") | .number' 2>/dev/null | head -n1)
+          if [ -z "${pr:-}" ]; then
+            echo "No open PR for commit $HEAD_SHA; nothing to merge."; exit 0
+          fi
+
+          # Only ever touch Dependabot's own PRs. gh reports the app as
+          # "app/dependabot", REST elsewhere as "dependabot[bot]"; match either.
+          author=$(gh pr view "$pr" --repo "$REPO" --json author --jq '.author.login' 2>/dev/null || true)
+          case "$author" in
+            *dependabot*) ;;
+            *) echo "PR #$pr is not a Dependabot PR (author: ${author:-unknown}); leaving it alone."; exit 0 ;;
+          esac
+
+          # All green: every check run on this commit (every job of every PR
+          # workflow, matrix legs included) must be finished and passing. If
+          # another workflow is still running, its own completion re-fires this.
+          bad=$(gh api --paginate "repos/$REPO/commits/$HEAD_SHA/check-runs" \
+                  --jq '.check_runs[]
+                        | select(.status != "completed"
+                                 or ((.conclusion // "") | IN("success","skipped","neutral") | not))
+                        | "\(.name)=\(.conclusion // .status)"')
+          if [ -n "$bad" ]; then
+            echo "Not every check on $HEAD_SHA is green yet; not merging:"; echo "$bad"; exit 0
+          fi
+
+          # --- To hold semver-major bumps for a human, uncomment this guard: ---
+          # title=$(gh pr view "$pr" --repo "$REPO" --json title --jq '.title')
+          # fromM=$(printf '%s' "$title" | sed -nE 's/.* from v?([0-9]+)\..*/\1/p')
+          # toM=$(printf   '%s' "$title" | sed -nE 's/.* to v?([0-9]+)\..*/\1/p')
+          # if [ -n "$fromM" ] && [ -n "$toM" ] && [ "$toM" -gt "$fromM" ]; then
+          #   echo "PR #$pr is a semver-major bump ($fromM -> $toM); leaving for review."; exit 0
+          # fi
+
+          echo "CI is green on Dependabot PR #$pr; merging."
+          # --match-head-commit: never merge a commit CI didn't test. Failure here
+          # (stale branch, conflict, newer push) is expected, not an error:
+          # Dependabot rebases, CI re-runs, and this fires again.
+          gh pr merge "$pr" --repo "$REPO" --merge --delete-branch --match-head-commit "$HEAD_SHA" \
+            || echo "PR #$pr not merged yet (needs rebase or has a newer commit); will retry after Dependabot updates it."
